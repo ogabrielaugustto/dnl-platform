@@ -1,1152 +1,529 @@
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This project uses **Next.js 16** with **React 19** and **Supabase SSR**.
+Before changing architecture, rendering strategy, routing, auth, cache, or request APIs, read the relevant local docs in `node_modules/next/dist/docs/`.
 
-# AGENTS.md — Contexto Técnico do Projeto DNL
+Mandatory references for this repo:
 
-## 1. Visão Geral
+- `node_modules/next/dist/docs/01-app/01-getting-started/02-project-structure.md`
+- `node_modules/next/dist/docs/01-app/01-getting-started/03-layouts-and-pages.md`
+- `node_modules/next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md`
+- `node_modules/next/dist/docs/01-app/01-getting-started/10-error-handling.md`
+- `node_modules/next/dist/docs/01-app/02-guides/authentication.md`
+- `node_modules/next/dist/docs/01-app/02-guides/upgrading/version-16.md`
+- `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/loading.md`
+- `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/error.md`
+- `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/layout.md`
+- `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/route-groups.md`
 
-O projeto **DNL — Direito Na Lente** é uma plataforma SaaS para monitoramento e identificação de possíveis usos indevidos de imagens na internet.
+Important Next.js 16 reminders:
 
-A proposta é permitir que fotógrafos, agências, criadores, empresas ou titulares de direitos autorais cadastrem suas imagens na plataforma e recebam ocorrências encontradas na web por meio de busca reversa e análise automatizada.
+- `params`, `searchParams`, `cookies()`, and `headers()` are async.
+- `proxy.ts` is the current request-boundary convention. Do not introduce root `middleware.ts`.
+- Prefer App Router native files: `layout.tsx`, `page.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`, `global-error.tsx`, `route.ts`.
+- Use Server Components by default. Add `"use client"` only when interactivity or browser APIs are required.
 
-O MVP tem foco em:
+# AGENTS.md — DNL Platform
 
-- Cadastro e organização de imagens monitoradas.
-- Busca reversa usando Google Cloud Vision Web Detection.
-- Registro de URLs onde imagens semelhantes ou correspondentes foram encontradas.
-- Geração de evidências iniciais, incluindo screenshot e relatório.
-- Validação humana das ocorrências.
-- Gestão de status das detecções.
-- Base técnica escalável para evoluir para uma plataforma SaaS completa.
+## 1. What This Repo Is
 
-Este projeto não deve ser tratado como apenas um CRUD. O núcleo de valor está no fluxo:
+This repository is the **main product application** for **DNL — Direito Na Lente**.
 
-```txt
-Imagem cadastrada → Busca reversa → Ocorrência encontrada → Evidência gerada → Validação humana → Ação/Notificação
-```
+Everything customer-facing lives here:
 
----
+- Landing page
+- Authentication screens
+- Client panel
+- Admin panel
+- Internal API routes and Server Actions
 
-## 2. Objetivo do MVP
+This repo is a **single Next.js app** today. It is **not** a monorepo yet.
 
-O objetivo do MVP é validar tecnicamente e comercialmente se é possível entregar uma experiência funcional para:
-
-1. Usuário cadastrar imagens próprias.
-2. Sistema executar busca reversa dessas imagens.
-3. Sistema registrar possíveis usos encontrados na internet.
-4. Usuário/admin revisar as ocorrências.
-5. Plataforma gerar evidências iniciais para tomada de ação.
-
-O MVP deve ser simples, funcional e organizado, mas sem complexidade prematura.
-
-Não construir microserviços desnecessários.
-Não criar crawler próprio no MVP.
-Não criar IA própria de matching no MVP.
-Não automatizar toda a parte jurídica no MVP.
-Não transformar o projeto em uma arquitetura grande antes de validar o core.
-
----
-
-## 3. Arquitetura Recomendada
-
-A arquitetura principal do projeto deve seguir este desenho:
+Current real structure:
 
 ```txt
-Usuário/Admin
-   ↓
-Next.js App
-   ↓
-Supabase Auth + PostgreSQL
-   ↓
-Cloudflare R2
-   ↓
-Fila/Jobs
-   ↓
-Worker Node.js
-   ↓
-Google Cloud Vision + Playwright
-   ↓
-Banco + Storage + Logs + Evidências
-```
-
-Componentes principais:
-
-```txt
-apps/web      → Aplicação Next.js fullstack
-apps/worker   → Worker Node.js para jobs pesados
-packages/db   → Schema, migrations, queries e client do banco
-packages/shared → Types, constantes, validadores e helpers compartilhados
-```
-
-A separação recomendada é:
-
-```txt
-Next.js:
-- Interface
-- Auth
-- CRUD
-- Upload
-- Dashboard
-- Filtros
-- Permissões
-- API interna
-- Criação de jobs
-
-Worker:
-- Busca reversa no Google Vision
-- Captura de screenshots
-- Processamento em lote
-- Retry de falhas
-- Deduplicação de ocorrências
-- Atualização de status dos jobs
-- Geração de evidências pesadas
-```
-
----
-
-## 4. Estrutura de Repositório Recomendada
-
-Preferir monorepo com `pnpm workspaces` e, se útil, `Turborepo`.
-
-```txt
-dnl/
-├── apps/
-│   ├── web/
-│   │   ├── src/
-│   │   │   ├── app/
-│   │   │   │   ├── (public)/
-│   │   │   │   ├── (client)/
-│   │   │   │   ├── (admin)/
-│   │   │   │   └── api/
-│   │   │   ├── components/
-│   │   │   ├── features/
-│   │   │   ├── lib/
-│   │   │   └── middleware.ts
-│   │   └── package.json
-│   │
-│   └── worker/
-│       ├── src/
-│       │   ├── jobs/
-│       │   ├── services/
-│       │   ├── scheduler/
-│       │   ├── queue/
-│       │   └── index.ts
-│       └── package.json
-│
-├── packages/
-│   ├── db/
-│   │   ├── schema/
-│   │   ├── migrations/
-│   │   ├── queries/
-│   │   └── client.ts
-│   │
-│   ├── shared/
-│   │   ├── types/
-│   │   ├── constants/
-│   │   ├── validators/
-│   │   └── utils/
-│   │
-│   └── config/
-│       ├── eslint/
-│       ├── tsconfig/
-│       └── prettier/
-│
-├── infra/
-│   ├── docker-compose.yml
-│   └── README.md
-│
-├── docs/
-│   ├── architecture.md
-│   ├── database.md
-│   └── jobs.md
-│
+dnl-platform/
+├── app/
+├── components/
+├── lib/
+├── public/
+├── AGENTS.md
+├── next.config.ts
 ├── package.json
-├── pnpm-workspace.yaml
-├── turbo.json
-└── AGENTS.md
+└── tsconfig.json
 ```
 
-Se o projeto for dividido em repositórios separados, usar:
+Do not pretend there is already an `apps/web` package here.
+If a future migration to monorepo happens, update this file first.
+
+## 2. Sister Repo Context
+
+This repo works together with the sibling repository:
 
 ```txt
-dnl-web      → Next.js
-dnl-worker   → Worker Node.js
-dnl-shared   → Opcional; evitar no começo se gerar fricção
+../dnl-worker
 ```
 
-A preferência é monorepo, pois reduz duplicação de types, validações, schema e regras de negócio.
+When a task touches product flow, database meaning, worker communication, job lifecycle, detections, or evidence generation, inspect:
 
----
+- `c:/github/dnl-worker/AGENTS.md`
+- `c:/github/dnl-worker/supabase/migrations/`
 
-## 5. Stack Técnica Padrão
+Right now, the most concrete database source of truth is in:
 
-### Frontend / Fullstack
+- `c:/github/dnl-worker/supabase/migrations/20260604170000_database_foundation.sql`
+- `c:/github/dnl-worker/supabase/migrations/20260604173000_seed_subscription_plans.sql`
 
-Usar:
+If this repo and the worker repo diverge, prefer the migration files over outdated assumptions.
 
-- Next.js 15+
+## 3. Product Principle
+
+This project is not just a CRUD.
+The core value is the monitoring workflow:
+
+```txt
+Asset upload
+→ monitoring rule / scan job
+→ reverse image search
+→ detection found
+→ evidence captured
+→ human validation
+→ action / takedown / resolution
+```
+
+The UI must always reinforce that:
+
+- A detection is not automatically an infringement.
+- Human validation is mandatory.
+- Evidence is operational support, not legal certainty.
+
+## 4. Architecture Decision
+
+Use this rule when in doubt:
+
+```txt
+dnl-platform handles experience, auth, dashboards, CRUD, protected routes, and lightweight orchestration.
+dnl-worker handles heavy processing, reverse search, screenshots, evidence generation, and background execution.
+Supabase/Postgres stores state.
+Cloudflare R2 stores files.
+```
+
+Never move heavy operational work into a user request just because it is easier to code in the moment.
+
+## 5. Current Tech Stack
+
+Frontend / fullstack:
+
+- Next.js 16
+- React 19
 - TypeScript
 - App Router
-- TailwindCSS
+- Tailwind CSS v4
 - shadcn/ui
-- React Hook Form
-- Zod
+- Supabase SSR
 
-Evitar:
-
-- Estado global desnecessário.
-- Duplicação de telas entre cliente e admin.
-- Componentes grandes demais.
-- Lógica de negócio crítica dentro de componentes React.
-
-### Banco e Auth
-
-Usar:
+Auth / backend:
 
 - Supabase Auth
-- Supabase PostgreSQL
-- Drizzle ORM ou Prisma
+- Supabase Postgres
+- RLS and `organization_id`-scoped data
 
-Preferência técnica:
+Worker side:
+
+- Lives in `../dnl-worker`
+- Fastify + Google Vision + Playwright today
+- Supabase migrations already define the future shared domain model
+
+## 6. Repo Responsibility
+
+This repo must contain:
+
+- LP and public pages
+- Auth flows using Supabase
+- Client dashboard
+- Admin dashboard
+- Protected route orchestration
+- Upload UI and form handling
+- Server Actions or Route Handlers for lightweight mutations
+- Fetching and rendering tenant-safe data
+
+This repo must not contain:
+
+- Playwright browser automation
+- Reverse image search execution
+- Long-running screenshot processing
+- Queue workers
+- Heavy evidence generation
+- Scheduler execution
+
+## 7. Route Strategy
+
+All panels and the landing page must live in this same Next app.
+
+Use route groups to organize sections without changing URLs:
 
 ```txt
-Drizzle ORM para schema tipado, SQL explícito e menor camada de abstração.
+app/
+├── (public)/
+│   └── page.tsx                     → /
+├── (auth)/
+│   └── auth/
+│       ├── login/page.tsx          → /auth/login
+│       ├── register/page.tsx       → /auth/register
+│       └── forgot-password/page.tsx→ /auth/forgot-password
+├── (client)/
+│   ├── dashboard/page.tsx          → /dashboard
+│   ├── assets/
+│   ├── detections/
+│   ├── reports/
+│   └── settings/
+└── (admin)/
+    └── admin/
+        ├── page.tsx                → /admin
+        ├── clients/
+        ├── assets/
+        ├── detections/
+        ├── jobs/
+        ├── reports/
+        └── audit/
 ```
 
-Se Prisma já estiver instalado ou acelerar muito o desenvolvimento, pode usar Prisma. A prioridade é consistência, não preferência estética.
+Rules:
 
-### Storage
+- LP, auth, client, and admin stay in this repo.
+- Do not create separate Next apps for client/admin in the MVP.
+- Keep URLs clean; use route groups for organization, not URL decoration.
+- Prefer nested layouts per area when the shell differs.
 
-Usar:
+## 8. File Conventions We Must Use
 
-- Cloudflare R2
+For route segments, prefer native App Router structure:
 
-Armazenar:
+- `page.tsx` for route entry
+- `layout.tsx` for shared shell
+- `loading.tsx` for streamed loading states
+- `error.tsx` for route-scoped error boundaries
+- `not-found.tsx` for 404 UI
+- `global-error.tsx` for root failure state
+- `route.ts` for HTTP endpoints
 
-- Imagens originais.
-- Thumbnails.
-- Screenshots.
-- Relatórios PDF.
-- Snapshots ou arquivos auxiliares de evidência.
+Rules:
 
-### Worker
+- New significant route areas should usually include at least `page.tsx`, `loading.tsx`, and `error.tsx`.
+- `error.tsx` must be a Client Component.
+- Keep `loading.tsx` lightweight.
+- Do not put important request-time auth logic only in `layout.tsx`, because layouts may not re-render on navigation.
 
-Usar:
+## 9. Rendering Rules
 
-- Node.js
-- TypeScript
-- Playwright
-- Google Cloud Vision SDK
-- Sharp, quando necessário para tratamento de imagem
-- Postgres queue no MVP ou BullMQ com Redis se a escala exigir
+Default mindset:
 
-### Deploy
+- Server-first
+- Cache-friendly
+- Streamed where helpful
+- Minimal client JavaScript
 
-Usar:
+Use Server Components for:
 
-- Vercel para `apps/web`.
-- Railway para `apps/worker`.
-- Supabase para banco e autenticação.
-- Cloudflare R2 para arquivos.
-- cron-job.org ou scheduler equivalente para disparar rotinas no MVP.
+- Data fetching
+- Supabase server reads
+- Secure access to secrets
+- Initial dashboard rendering
+- Auth-aware page loading
 
----
+Use Client Components only for:
 
-## 6. Separação de Responsabilidades
+- Form interactivity
+- Local state
+- Browser APIs
+- Search/filter UI that depends on client state
+- Hooks like `usePathname`, `useSearchParams`, `useRouter`
 
-### `apps/web`
+Avoid:
 
-Responsável por:
+- Marking whole pages or layouts as client unnecessarily
+- Pulling secure logic into the browser
+- Reading sensitive data directly in client components
 
-- Landing page.
-- Login, cadastro e recuperação de senha.
-- Painel do cliente.
-- Painel administrativo.
-- Upload de imagens.
-- Gestão de assets/obras.
-- Listagem de detecções.
-- Filtros por status, período, cliente, obra, domínio etc.
-- Detalhe da ocorrência.
-- Comparação visual entre imagem original e imagem encontrada.
-- Ações manuais de classificação.
-- Geração ou solicitação de relatório.
-- Criação de jobs para processamento assíncrono.
+## 10. Fast Loading Rules
 
-Não deve:
+We want fast navigation and fast first paint.
 
-- Rodar Playwright.
-- Fazer processamento pesado.
-- Executar varredura em massa.
-- Chamar Google Vision em lote dentro de request HTTP do usuário.
-- Fazer tarefas longas que possam estourar timeout.
+Rules:
 
-### `apps/worker`
+- Keep layouts as stable and lightweight as possible.
+- Avoid uncached request-time work inside layouts unless wrapped carefully.
+- Put request-bound data loading in pages or leaf server components when possible.
+- Use `loading.tsx` at route boundaries that may suspend.
+- Use `Suspense` for finer-grained slow areas.
+- Fetch close to the component that needs the data.
+- Let Next dedupe fetches instead of manually over-sharing data through layouts.
 
-Responsável por:
-
-- Buscar jobs pendentes.
-- Executar busca reversa via Google Cloud Vision.
-- Processar resposta da API.
-- Deduplicar ocorrências.
-- Capturar screenshots com Playwright.
-- Salvar evidências no Cloudflare R2.
-- Atualizar status dos jobs.
-- Registrar erros e logs.
-- Aplicar retry com limite de tentativas.
-- Rodar varreduras agendadas.
-
-Não deve:
-
-- Renderizar UI.
-- Conter regras de permissão de tela.
-- Expor endpoints públicos sem proteção.
-- Misturar lógica visual com lógica operacional.
-
-### `packages/db`
-
-Responsável por:
-
-- Schema do banco.
-- Migrations.
-- Queries reutilizáveis.
-- Tipos derivados do schema.
-- Client de conexão.
-- Helpers transacionais.
-
-### `packages/shared`
-
-Responsável por:
-
-- Types compartilhados.
-- Enums.
-- Constantes.
-- Validadores Zod.
-- Helpers puros.
-- Regras comuns entre web e worker.
-
-Não deve conter:
-
-- Dependência de React.
-- Dependência de Next.js.
-- Dependência direta de Playwright.
-- Código específico de ambiente.
-
----
-
-## 7. Rotas e Áreas da Aplicação
-
-### Área pública
+When a route is important and can be slow, create:
 
 ```txt
-/
- /login
- /register
- /forgot-password
+page.tsx
+loading.tsx
+error.tsx
 ```
 
-### Área do cliente
+## 11. Auth Rules With Supabase SSR
+
+Current auth utilities already exist in:
+
+- `lib/server.ts`
+- `lib/client.ts`
+- `lib/middleware.ts`
+- `proxy.ts`
+
+Auth conventions:
+
+- Use Supabase SSR clients, not ad-hoc browser-only auth patterns.
+- Server reads should use `lib/server.ts`.
+- Client-only auth interactions should use `lib/client.ts`.
+- Request-bound session refresh must go through `proxy.ts`.
+- Keep secrets server-only.
+
+Important Next.js auth rule from the docs:
+
+- Do not rely only on layout-level auth checks.
+- Protect data in the page, DAL, Server Action, or Route Handler that actually uses it.
+
+## 12. Route Protection Rules
+
+Public routes:
+
+- `/`
+- `/auth/login`
+- `/auth/register`
+- `/auth/forgot-password`
+
+Protected client routes:
+
+- `/dashboard`
+- `/assets`
+- `/detections`
+- `/reports`
+- `/settings`
+
+Protected admin routes:
+
+- `/admin`
+
+Rules:
+
+- Use `proxy.ts` for request-bound session refresh and coarse route gating.
+- Use deeper server-side authorization checks in pages, actions, and route handlers.
+- Never assume hiding a button in the UI is authorization.
+- Admin access must be validated with server-side role checks.
+
+## 13. Multi-Tenant Security
+
+This project is multi-tenant from the beginning.
+
+Mandatory rules:
+
+- Every sensitive record is scoped by `organization_id`.
+- Never return data from another organization in client routes.
+- Respect RLS and tenant boundaries in every data path.
+- Only expose fields needed by the current UI.
+- Never trust client-submitted `organization_id` blindly.
+
+When implementing queries or mutations, verify:
+
+- who is the user
+- what organization they belong to
+- what role they have
+- whether the data being fetched belongs to that organization
+
+## 14. Domain Model Reference
+
+The current database model already goes beyond the older MVP draft.
+Important entities visible in migrations:
+
+- `profiles`
+- `organizations`
+- `organization_members`
+- `subscription_plans`
+- `organization_subscriptions`
+- `assets`
+- `asset_files`
+- `monitoring_rules`
+- `scan_jobs`
+- `scan_runs`
+- `detections`
+- `detection_evidences`
+- `detection_actions`
+- `audit_logs`
+
+If creating frontend types or screen structure, align naming with the migrations.
+
+Use English in code:
 
 ```txt
-/dashboard
-/assets
-/assets/new
-/assets/[id]
-/detections
-/detections/[id]
-/reports
-/settings
-```
-
-### Área administrativa
-
-```txt
-/admin
-/admin/clients
-/admin/assets
-/admin/detections
-/admin/jobs
-/admin/reports
-/admin/audit
-```
-
-A aplicação deve usar um único app Next.js com separação por rotas e permissões.
-
-Não criar `dnl-client` e `dnl-admin` separados no MVP, salvo se houver decisão explícita posterior.
-
----
-
-## 8. Modelo de Permissões
-
-Perfis iniciais:
-
-```txt
-client_owner
-client_member
-admin
-super_admin
-```
-
-Regras gerais:
-
-- `client_owner`: gerencia a própria organização.
-- `client_member`: acessa dados da organização, com permissões limitadas.
-- `admin`: opera ocorrências, clientes e suporte.
-- `super_admin`: acesso total operacional.
-
-Todo dado sensível deve estar sempre vinculado a uma `organization_id`.
-
-Nunca retornar dados de outra organização em endpoints do cliente.
-
----
-
-## 9. Entidades Principais do Banco
-
-### `organizations`
-
-Representa o cliente/empresa/titular.
-
-Campos sugeridos:
-
-```txt
-id
-name
-document
-email
-created_at
-updated_at
-```
-
-### `organization_members`
-
-Relaciona usuários a organizações.
-
-```txt
-id
-organization_id
-user_id
-role
-created_at
-updated_at
-```
-
-### `assets`
-
-Imagem/obra monitorada.
-
-```txt
-id
-organization_id
-title
-description
-author
-sku
-license_type
-status
-created_at
-updated_at
-```
-
-### `asset_files`
-
-Arquivo da imagem.
-
-```txt
-id
-asset_id
-r2_key
-public_url
-hash
-phash
-width
-height
-mime_type
-size
-created_at
-```
-
-### `scan_jobs`
-
-Fila simples de processamento no MVP.
-
-```txt
-id
-asset_id
-organization_id
-type
-status
-priority
-scheduled_at
-started_at
-finished_at
-attempts
-error_message
-created_at
-updated_at
-```
-
-Tipos:
-
-```txt
-manual_scan
-scheduled_scan
-retry_scan
-```
-
-Status:
-
-```txt
-pending
-processing
-completed
-failed
-cancelled
-```
-
-### `detections`
-
-Ocorrência encontrada.
-
-```txt
-id
-asset_id
-organization_id
-source_url
-matched_image_url
-page_title
-domain
-confidence_score
-vision_payload
-status
-first_seen_at
-last_seen_at
-created_at
-updated_at
-```
-
-Status:
-
-```txt
-pending
-possible_infringement
-authorized
-unauthorized
-takedown_sent
-resolved
-ignored
-```
-
-### `detection_evidences`
-
-Evidências da ocorrência.
-
-```txt
-id
-detection_id
-screenshot_r2_key
-pdf_r2_key
-html_snapshot_r2_key
-captured_at
-capture_status
-metadata
-created_at
-updated_at
-```
-
-### `detection_actions`
-
-Histórico de ações.
-
-```txt
-id
-detection_id
-user_id
-action
-from_status
-to_status
-notes
-created_at
-```
-
-### `infringers`
-
-Dados do possível infrator.
-
-```txt
-id
-detection_id
-company_name
-legal_name
-document
-email
-phone
-address
-domain
-ownership_data
-created_at
-updated_at
-```
-
-### `audit_logs`
-
-Auditoria geral.
-
-```txt
-id
-organization_id
-user_id
-entity
-entity_id
-action
-metadata
-created_at
-```
-
----
-
-## 10. Fluxo de Upload
-
-Fluxo esperado:
-
-```txt
-1. Usuário envia imagem pelo painel.
-2. Web valida tamanho, formato e permissões.
-3. Arquivo é salvo no Cloudflare R2.
-4. Registro é criado em `assets`.
-5. Registro técnico é criado em `asset_files`.
-6. Job inicial é criado em `scan_jobs`.
-7. Worker processa o job de forma assíncrona.
-```
-
-Regras:
-
-- Não bloquear o usuário esperando Google Vision.
-- Após upload, mostrar status como "Aguardando varredura" ou "Processando".
-- Permitir reprocessamento manual.
-- Manter histórico de tentativas.
-
----
-
-## 11. Fluxo de Busca Reversa
-
-Fluxo esperado:
-
-```txt
-1. Worker busca job com status `pending`.
-2. Marca job como `processing`.
-3. Carrega a imagem original do R2.
-4. Envia imagem para Google Cloud Vision Web Detection.
-5. Recebe URLs, imagens correspondentes e imagens similares.
-6. Normaliza os resultados.
-7. Deduplica por asset + URL + imagem encontrada.
-8. Cria ou atualiza registros em `detections`.
-9. Agenda captura de screenshot quando aplicável.
-10. Marca job como `completed` ou `failed`.
-```
-
-Regras:
-
-- Salvar payload bruto relevante da API em `vision_payload`.
-- Não criar detecção duplicada para a mesma URL/imagem.
-- Registrar erro detalhado em caso de falha.
-- Limitar tentativas para evitar loop infinito.
-- Não considerar automaticamente toda correspondência como infração. A validação humana é obrigatória.
-
----
-
-## 12. Fluxo de Screenshot e Evidência
-
-Fluxo esperado:
-
-```txt
-1. Worker recebe ou cria job de screenshot.
-2. Abre a URL com Playwright.
-3. Aguarda carregamento suficiente da página.
-4. Captura screenshot.
-5. Salva screenshot no Cloudflare R2.
-6. Cria registro em `detection_evidences`.
-7. Atualiza status da ocorrência.
-```
-
-Regras:
-
-- Sites podem bloquear automação.
-- Falha de screenshot não deve apagar a detecção.
-- Registrar motivo da falha.
-- Permitir nova tentativa manual.
-- Não depender de screenshot para a detecção existir.
-
----
-
-## 13. Fluxo de Validação Humana
-
-A ocorrência encontrada deve ser revisada por humano.
-
-A tela de detalhe deve mostrar:
-
-- Imagem original.
-- Imagem encontrada, quando disponível.
-- URL de origem.
-- Domínio.
-- Data da detecção.
-- Screenshot.
-- Score de confiança.
-- Payload resumido da API.
-- Histórico de ações.
-- Status atual.
-
-Ações possíveis:
-
-```txt
-Marcar como possível infração
-Marcar como autorizado
-Marcar como não autorizado
-Enviar/registrar takedown
-Marcar como resolvido
-Ignorar
-```
-
-Toda ação deve gerar registro em `detection_actions`.
-
----
-
-## 14. Fluxo de Notificação/Takedown no MVP
-
-No MVP, a notificação deve ser inicialmente semi-manual.
-
-Pode existir:
-
-- Geração de texto padrão.
-- Prévia da notificação.
-- Campo de valor de compensação.
-- Registro de envio manual.
-- Atualização de status.
-
-Evitar no MVP:
-
-- Disparo jurídico automatizado sem revisão.
-- Cobrança automática.
-- Integração com escritório jurídico.
-- Workflow legal complexo.
-
----
-
-## 15. Relatórios PDF
-
-O relatório de evidência deve conter:
-
-- Dados da imagem original.
-- Dados da ocorrência.
-- URL encontrada.
-- Data/hora da coleta.
-- Screenshot, quando disponível.
-- Status da ocorrência.
-- Identificador interno.
-- Observações.
-
-O PDF pode ser gerado:
-
-- Pela aplicação web, se simples.
-- Pelo worker, se envolver imagens pesadas, screenshot, template ou processamento mais demorado.
-
-Preferência:
-
-```txt
-Gerar PDF via worker se houver risco de timeout.
-```
-
----
-
-## 16. Estratégia de Fila
-
-No MVP, a fila pode ser uma tabela no PostgreSQL.
-
-Tabela principal:
-
-```txt
-scan_jobs
-```
-
-Processamento:
-
-```txt
-1. Worker consulta próximo job `pending`.
-2. Aplica lock/transação para evitar processamento duplicado.
-3. Atualiza para `processing`.
-4. Executa job.
-5. Atualiza para `completed` ou `failed`.
-6. Em caso de falha, incrementa `attempts`.
-7. Se `attempts < max_attempts`, reagenda.
-```
-
-Migrar para BullMQ + Redis quando houver:
-
-- Muitos jobs simultâneos.
-- Vários workers paralelos.
-- Necessidade de prioridades avançadas.
-- Delays e retries mais sofisticados.
-- Necessidade de dashboard específico de fila.
-
----
-
-## 17. Agendamento de Varreduras
-
-No MVP, usar scheduler externo ou cron simples.
-
-Fluxo:
-
-```txt
-cron-job.org ou scheduler
-   ↓
-endpoint interno protegido
-   ↓
-criação de scan_jobs pendentes
-   ↓
-worker processa
-```
-
-Regras:
-
-- O endpoint de scheduler deve ser protegido por secret.
-- O scheduler não deve processar imagens diretamente.
-- O scheduler apenas cria jobs.
-- O worker processa.
-
-Frequências possíveis:
-
-```txt
-weekly
-daily
-manual
-```
-
-A frequência deve ser configurável por plano, cliente ou asset no futuro.
-
----
-
-## 18. Google Cloud Vision
-
-Usar a funcionalidade:
-
-```txt
-Web Detection
-```
-
-Objetivo:
-
-- Encontrar páginas com imagens correspondentes.
-- Encontrar imagens visualmente similares.
-- Retornar URLs públicas relacionadas.
-
-Regras:
-
-- Não assumir 100% de precisão.
-- Sempre exigir validação humana.
-- Salvar score/confiança quando disponível.
-- Salvar URLs retornadas.
-- Salvar payload bruto útil.
-- Tratar falhas, limites e custos da API.
-
----
-
-## 19. Segurança e Privacidade
-
-Regras obrigatórias:
-
-- Não expor imagens privadas sem controle.
-- Não retornar dados entre organizações.
-- Proteger endpoints internos.
-- Usar variáveis de ambiente para secrets.
-- Nunca commitar `.env`.
-- Não logar tokens, chaves ou credenciais.
-- Validar upload de arquivos.
-- Limitar tipos aceitos de imagem.
-- Limitar tamanho máximo de upload.
-- Usar URLs assinadas quando necessário.
-- Registrar auditoria para ações críticas.
-
----
-
-## 20. Padrões de Código
-
-### Geral
-
-- Usar TypeScript estrito sempre que possível.
-- Evitar `any`.
-- Preferir funções pequenas e nomeadas.
-- Separar lógica de negócio de UI.
-- Evitar duplicação.
-- Criar validações com Zod.
-- Criar types compartilhados quando usados por web e worker.
-- Tratar erros explicitamente.
-- Não esconder erro crítico com `catch` vazio.
-
-### Nomes
-
-Usar inglês no código:
-
-```txt
-assets
-detections
-scanJobs
-evidences
+profiles
 organizations
-infringers
+organizationMembers
+assets
+assetFiles
+monitoringRules
+scanJobs
+scanRuns
+detections
+detectionEvidences
+detectionActions
+auditLogs
 ```
 
-UI pode ser em português.
+UI text may stay in Portuguese.
 
-### Commits
+## 15. Recommended App Organization
 
-Usar commits objetivos:
+Use a structure that fits the current repo, not a hypothetical future monorepo:
 
 ```txt
-feat: add asset upload flow
-feat: add scan job processing
-fix: prevent duplicated detections
-refactor: move detection types to shared package
+app/
+├── (public)/
+├── (auth)/
+├── (client)/
+├── (admin)/
+├── api/
+├── global-error.tsx
+├── layout.tsx
+├── not-found.tsx
+└── globals.css
+
+components/
+├── ui/
+└── ...
+
+lib/
+├── auth/
+├── dal/
+├── supabase/
+├── validations/
+└── ...
 ```
 
----
+Notes:
 
-## 21. Padrões para Next.js
+- It is okay to colocate route-specific helpers inside route folders.
+- Use `_components`, `_lib`, `_actions`, `_schemas` private folders inside route segments when the feature is local.
+- Use `components/ui` for generic reusable UI only.
+- Use `lib/` for cross-route utilities, auth helpers, DAL, and pure shared logic.
 
-Preferir:
+## 16. Data Access Pattern
 
-- Server Components quando possível.
-- Server Actions ou API Routes para mutações, conforme padrão adotado no projeto.
-- Validação no servidor.
-- Middleware para proteção de rotas.
-- Componentes isolados por feature.
-- `loading.tsx`, `error.tsx` e `not-found.tsx` quando fizer sentido.
+Prefer a DAL-style approach for secure reads:
 
-Evitar:
+- Session verification in server code
+- Tenant-safe query helpers
+- DTO-like outputs with only the needed fields
 
-- Buscar dados sensíveis direto no client.
-- Duplicar fetch em vários componentes.
-- Colocar regra de permissão apenas no frontend.
-- Componentes de tela gigantes.
-- Misturar upload, validação, banco e UI em um único arquivo.
-
-Estrutura por feature:
+Recommended direction:
 
 ```txt
-features/
-├── assets/
-│   ├── components/
-│   ├── actions/
-│   ├── queries/
-│   ├── schemas/
-│   └── types.ts
-│
-├── detections/
-│   ├── components/
-│   ├── actions/
-│   ├── queries/
-│   ├── schemas/
-│   └── types.ts
+lib/dal/
+├── auth.ts
+├── organizations.ts
+├── assets.ts
+├── detections.ts
+└── admin.ts
 ```
 
----
+Rules:
 
-## 22. Padrões para Worker
+- Read data on the server.
+- Return only the columns needed by the UI.
+- Keep authorization close to the data read.
+- Do not pass raw giant records to client components.
 
-O worker deve ser previsível, resiliente e fácil de debugar.
+## 17. Forms and Mutations
 
-Estrutura sugerida:
+Prefer native Next patterns:
 
-```txt
-apps/worker/src/
-├── jobs/
-│   ├── scan-asset.job.ts
-│   ├── capture-screenshot.job.ts
-│   └── generate-report.job.ts
-│
-├── services/
-│   ├── vision.service.ts
-│   ├── screenshot.service.ts
-│   ├── storage.service.ts
-│   ├── detection.service.ts
-│   └── job.service.ts
-│
-├── queue/
-│   └── postgres-queue.ts
-│
-├── scheduler/
-│   └── create-scan-jobs.ts
-│
-└── index.ts
-```
+- Server Actions for simple internal mutations
+- `route.ts` for explicit HTTP endpoints or integration-style handlers
+- Zod for server validation
+- `useActionState` for expected form errors
 
-Regras:
+Rules:
 
-- Cada job deve ter função clara.
-- Todo job deve registrar início, fim e erro.
-- Todo job deve ser idempotente quando possível.
-- Não processar o mesmo job duas vezes.
-- Não criar duplicatas de detecção.
-- Aplicar timeout em chamadas externas.
-- Aplicar retry limitado.
-- Registrar falhas com contexto suficiente.
+- Treat every Server Action like a public backend mutation.
+- Validate input on the server.
+- Authorize again on the server.
+- Return expected errors as values when appropriate.
+- Reserve thrown errors for truly unexpected failures.
 
----
+## 18. Error Handling Rules
 
-## 23. Variáveis de Ambiente
+Expected errors:
 
-Exemplo geral:
+- validation failures
+- auth failures
+- permission denials
+- empty states
+- business-rule rejections
 
-```env
-DATABASE_URL=
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+These should be handled explicitly in pages, actions, and handlers.
 
-CLOUDFLARE_R2_ACCOUNT_ID=
-CLOUDFLARE_R2_ACCESS_KEY_ID=
-CLOUDFLARE_R2_SECRET_ACCESS_KEY=
-CLOUDFLARE_R2_BUCKET=
-CLOUDFLARE_R2_PUBLIC_URL=
+Unexpected errors:
 
-GOOGLE_CLOUD_PROJECT_ID=
-GOOGLE_APPLICATION_CREDENTIALS=
-GOOGLE_CLOUD_VISION_API_KEY=
+- coding bugs
+- broken assumptions
+- integration crashes
+- unhandled runtime failures
 
-INTERNAL_API_SECRET=
-WORKER_CONCURRENCY=
-MAX_JOB_ATTEMPTS=
-```
+These should be caught by route-level `error.tsx` or `global-error.tsx`.
 
-Regras:
+Rules:
 
-- `SUPABASE_SERVICE_ROLE_KEY` nunca deve ser exposta no client.
-- Chaves de R2 nunca devem ir para o frontend.
-- Endpoints internos devem exigir `INTERNAL_API_SECRET`.
-- Usar `.env.example` sem valores reais.
+- Add route-level `error.tsx` for important sections.
+- Use `unstable_retry()` in route error boundaries when helpful.
+- Use `notFound()` and `not-found.tsx` for missing resources.
+- Do not leak sensitive server error messages into the UI.
 
----
+## 19. Next.js 16-Specific Rules
 
-## 24. Observabilidade e Logs
+- Do not create root `middleware.ts`; use `proxy.ts`.
+- Do not use removed `next lint`; run `eslint` directly.
+- Do not assume sync `params` or sync `searchParams`.
+- Do not manually write `<head>` metadata in layouts; use Metadata API.
+- Prefer `images.remotePatterns` over deprecated `images.domains`.
+- Be aware that layouts do not re-render on navigation.
 
-Registrar logs para:
+When typing route props, prefer:
 
-- Upload criado.
-- Job criado.
-- Job iniciado.
-- Job concluído.
-- Job falhou.
-- Detecção criada.
-- Detecção duplicada ignorada.
-- Screenshot capturado.
-- Screenshot falhou.
-- Status alterado.
-- Relatório gerado.
+- `PageProps<'/route'>`
+- `LayoutProps<'/route'>`
 
-Logs devem conter:
+when type generation is available.
 
-```txt
-job_id
-asset_id
-organization_id
-detection_id
-status
-error_message
-duration_ms
-```
+## 20. Code Style Rules
 
-Não logar:
+- Use TypeScript strict mode.
+- Avoid `any`.
+- Keep files small and focused.
+- Prefer named functions for domain logic.
+- Separate UI, validation, auth, and data concerns.
+- Use Zod for input schemas.
+- Use English for code identifiers.
+- Keep UI copy in Portuguese unless there is a product reason not to.
 
-- Tokens.
-- Secrets.
-- Cookies.
-- Chaves privadas.
-- Payloads enormes sem necessidade.
+Avoid:
 
----
+- giant page files
+- giant client components
+- auth logic duplicated in many places
+- heavy business logic inside JSX
+- silent `catch`
 
-## 25. Fora do Escopo do MVP
+## 21. UX Rules
 
-Não implementar no MVP, salvo ordem explícita:
+The app should communicate state clearly.
 
-- Crawler próprio para varrer a internet.
-- IA própria de reconhecimento visual.
-- Sistema jurídico automatizado completo.
-- Cobrança automática de infratores.
-- Integração com escritórios jurídicos.
-- Marketplace de advogados.
-- Multi-tenant complexo com billing avançado.
-- App mobile.
-- Microserviços.
-- Kubernetes.
-- Event sourcing.
-- Sistema avançado de permissões por módulo.
-- Integração com múltiplas APIs de busca além da escolhida.
-
----
-
-## 26. Decisões Arquiteturais Importantes
-
-### Backend separado?
-
-Não criar backend separado no MVP.
-
-Usar:
-
-```txt
-Next.js API/Server Actions para operações rápidas
-Worker separado para tarefas pesadas
-```
-
-Criar backend separado apenas se:
-
-- A API virar produto público.
-- Houver múltiplos clientes além do web app.
-- O domínio de negócio ficar grande demais.
-- O Next.js começar a acumular responsabilidades indevidas.
-- Houver necessidade real de serviço backend persistente.
-
-### Admin separado?
-
-Não criar app admin separado no MVP.
-
-Usar:
-
-```txt
-apps/web/src/app/(admin)
-```
-
-Criar app separado apenas se:
-
-- Admin tiver ciclo de deploy próprio.
-- Time separado mantiver o admin.
-- Exigências de segurança/infra justificarem.
-- O app público/cliente ficar muito grande.
-
-### Fila com Redis?
-
-Não começar com Redis se a fila em Postgres resolver.
-
-Começar com:
-
-```txt
-scan_jobs no PostgreSQL
-```
-
-Migrar para:
-
-```txt
-BullMQ + Redis
-```
-
-quando a escala exigir.
-
----
-
-## 27. Experiência do Usuário
-
-O usuário não deve precisar entender o processamento técnico.
-
-Estados claros:
+Important product states:
 
 ```txt
 Aguardando varredura
@@ -1160,94 +537,78 @@ Resolvido
 Ignorado
 ```
 
-A interface deve deixar claro:
+The user should understand:
 
-- Nem toda ocorrência é infração.
-- A validação humana é necessária.
-- O score é apoio, não veredito.
-- Screenshot pode falhar mesmo com URL válida.
-- O relatório é uma evidência inicial, não garantia jurídica definitiva.
+- what is still processing
+- what needs human review
+- what is safe vs uncertain
+- when evidence exists or failed to capture
 
----
+## 22. Out of Scope Warnings
 
-## 28. Princípio Técnico do Projeto
+Do not introduce without explicit instruction:
 
-A frase-guia:
+- separate backend app for the platform
+- separate admin app
+- crawler infrastructure
+- custom image-matching AI
+- legal workflow automation beyond MVP
+- Redis/BullMQ in this repo
+- Playwright processing in this repo
+- microservices
 
-```txt
-Next.js cuida da experiência e operação.
-Worker cuida do processamento pesado.
-PostgreSQL organiza o estado.
-R2 guarda os arquivos e evidências.
-Google Vision entrega o core inicial de busca reversa.
-Humano valida a ocorrência.
-```
+## 23. How Codex Must Work Here
 
-Sempre que houver dúvida arquitetural, seguir este princípio.
+Before coding:
 
----
+1. Read this file.
+2. Inspect the current route area and existing local conventions.
+3. Check relevant Next.js 16 local docs if the task touches routing, auth, loading, error boundaries, cache, or request APIs.
+4. If the task touches worker/database flow, inspect `../dnl-worker/AGENTS.md` and related migrations.
 
-## 29. Como o Codex Deve Trabalhar Neste Projeto
+While coding:
 
-Ao receber uma tarefa:
+1. Keep LP, auth, client, and admin in this repo.
+2. Use App Router conventions.
+3. Prefer Server Components.
+4. Use `loading.tsx` and `error.tsx` intentionally.
+5. Protect tenant data.
+6. Keep heavy work out of user requests.
 
-1. Ler este arquivo primeiro.
-2. Identificar qual app/pacote será afetado.
-3. Preservar a separação entre web, worker, db e shared.
-4. Evitar criar arquitetura nova sem necessidade.
-5. Preferir mudanças pequenas e revisáveis.
-6. Atualizar types, schemas e validações quando necessário.
-7. Criar ou ajustar testes quando houver estrutura de testes.
-8. Não introduzir dependências pesadas sem justificativa.
-9. Não mover regras pesadas para o frontend.
-10. Não colocar tarefas longas em request HTTP do Next.js.
+Before finishing:
 
-Antes de finalizar uma alteração:
+1. Run typecheck if available.
+2. Run lint if available.
+3. Verify no secrets were introduced.
+4. Verify route protection still makes sense.
+5. Verify no cross-tenant leakage was introduced.
 
-- Rodar typecheck.
-- Rodar lint, se disponível.
-- Rodar testes, se disponíveis.
-- Verificar se não há secrets em arquivos.
-- Verificar se a alteração respeita multi-tenant por `organization_id`.
-- Verificar se não há vazamento de dados entre clientes.
-
----
-
-## 30. Checklist de Qualidade
-
-Antes de considerar uma tarefa concluída, verificar:
+## 24. Final Quality Checklist
 
 ```txt
-[ ] Código compila.
-[ ] Types estão corretos.
-[ ] Validações existem no servidor.
-[ ] Erros são tratados.
-[ ] Não há `any` desnecessário.
-[ ] Não há secrets expostos.
-[ ] Não há processamento pesado no Next.js.
-[ ] Worker é idempotente quando necessário.
-[ ] Detecções não são duplicadas.
-[ ] Dados respeitam `organization_id`.
-[ ] Logs têm contexto suficiente.
-[ ] UI mostra estados claros.
-[ ] Mudança segue a arquitetura do projeto.
+[ ] Code compiles.
+[ ] Next.js 16 conventions were respected.
+[ ] Async request APIs were handled correctly.
+[ ] Server validation exists for mutations.
+[ ] Route protection is not only in the UI.
+[ ] `organization_id` boundaries are preserved.
+[ ] No secrets leaked to the client.
+[ ] No heavy processing was moved into Next requests.
+[ ] `loading.tsx` / `error.tsx` were added where the route needs them.
+[ ] Landing page, auth, client, and admin remain in this same app.
+[ ] Changes stay aligned with dnl-worker and current migrations.
 ```
 
----
+## 25. Guiding Sentence
 
-## 31. Tomada de Decisão
+When in doubt, follow this:
 
-Em caso de dúvida:
-
-- Escolher simplicidade operacional.
-- Proteger a possibilidade de escala futura.
-- Evitar abstração prematura.
-- Priorizar entrega do core.
-- Manter o domínio do produto claro.
-- Não mascarar limitação técnica.
-- Registrar decisões importantes em `docs/architecture.md`.
-
-A prioridade do MVP é validar valor, não provar sofisticação técnica.
-
+```txt
+One Next.js app for LP + auth + client + admin.
+Server-first rendering with Supabase SSR.
+Protected multi-tenant data by organization.
+Native Next.js file conventions for routing, loading, and errors.
+Heavy processing belongs to dnl-worker, not to user requests.
+```
 
 <!-- END:nextjs-agent-rules -->
