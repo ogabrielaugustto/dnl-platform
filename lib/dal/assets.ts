@@ -121,6 +121,7 @@ export type AssetListItem = {
     id: string;
     name: string;
     frequency: MonitoringRuleFrequency;
+    isActive: boolean;
     nextRunAt: string | null;
     lastRunAt: string | null;
   } | null;
@@ -756,6 +757,7 @@ function buildHydratedAssets(
             id: monitoringRule.id,
             name: monitoringRule.name,
             frequency: monitoringRule.frequency,
+            isActive: monitoringRule.is_active,
             nextRunAt: monitoringRule.next_run_at,
             lastRunAt: monitoringRule.last_run_at,
           }

@@ -16,6 +16,7 @@ const labels: Record<string, string> = {
   assets: "Galeria",
   audit: "Auditoria",
   dashboard: "Inicio",
+  cases: "Casos",
   detections: "Ocorrencias",
   gallery: "Galeria",
   jobs: "Processamentos",

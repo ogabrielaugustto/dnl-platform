@@ -2,27 +2,12 @@ import Link from "next/link";
 import { updateDetectionStatusAction } from "@/app/actions/detections";
 import { DetectionDetailsTabs } from "./_components/detection-details-tabs";
 import { Badge } from "@/components/ui/badge";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { InfoTooltip } from "@/components/ui/info-tooltip";
 import {
   formatDetectionStatus,
   formatEvidenceCoverage,
-  formatEvidenceStatus,
-  formatSimilarityScore,
-  getDetectionStatusHelp,
   getDetectionStatusVariant,
-  getEvidenceCoverageHelp,
   getEvidenceCoverageVariant,
-  getEvidenceStatusHelp,
-  getEvidenceStatusVariant,
 } from "@/lib/detection-ui";
 import { getDetectionDetails } from "@/lib/dal/detections";
 
@@ -43,33 +28,66 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-function StatusActionButton({
-  detectionId,
-  nextStatus,
-  label,
-}: {
-  detectionId: string;
-  nextStatus: string;
-  label: string;
-}) {
-  return (
-    <form action={updateDetectionStatusAction}>
-      <input type="hidden" name="detectionId" value={detectionId} />
-      <input type="hidden" name="nextStatus" value={nextStatus} />
-      <input type="hidden" name="redirectTo" value={`/detections/${detectionId}`} />
-      <Button type="submit" size="sm" variant="outline">
-        {label}
-      </Button>
-    </form>
-  );
-}
-
 function formatDomain(value: string) {
   if (!value || value === "site-nao-identificado") {
     return "Site nao identificado";
   }
 
   return value;
+}
+
+function DecisionButton({
+  detectionId,
+  nextStatus,
+  label,
+  reason,
+  variant = "outline",
+}: {
+  detectionId: string;
+  nextStatus: string;
+  label: string;
+  reason?: string;
+  variant?: "default" | "outline" | "secondary";
+}) {
+  return (
+    <form action={updateDetectionStatusAction}>
+      <input type="hidden" name="detectionId" value={detectionId} />
+      <input type="hidden" name="nextStatus" value={nextStatus} />
+      <input type="hidden" name="scope" value="incident" />
+      <input type="hidden" name="redirectTo" value={`/detections/${detectionId}`} />
+      {reason ? <input type="hidden" name="reason" value={reason} /> : null}
+      <Button type="submit" size="sm" variant={variant}>
+        {label}
+      </Button>
+    </form>
+  );
+}
+
+function ImagePanel(props: {
+  title: string;
+  imageUrl: string | null;
+  alt: string;
+  fallback: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+      <h2 className="text-sm font-medium text-foreground">{props.title}</h2>
+      <div className="mt-3 overflow-hidden rounded-md border border-border bg-muted/30">
+        {props.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={props.imageUrl}
+            alt={props.alt}
+            className="h-full min-h-72 w-full object-contain"
+          />
+        ) : (
+          <div className="flex min-h-72 items-center justify-center px-4 text-center text-sm text-muted-foreground">
+            {props.fallback}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default async function DetectionDetailsPage({
@@ -80,130 +98,60 @@ export default async function DetectionDetailsPage({
   const comparisonEvidence =
     detection.evidences.find((item) => item.matchedImageUrl || item.screenshotUrl) ??
     detection.latestEvidence;
+  const matchedImageUrl =
+    comparisonEvidence?.matchedImageUrl ?? detection.matchedImageUrl ?? null;
 
   return (
-    <section className="flex w-full flex-1 flex-col gap-6 px-6 py-10 md:px-8">
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href="/detections">Incidentes</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{formatDomain(detection.incident.domain)}</BreadcrumbPage>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>
-                {detection.currentPage?.pageTitle ?? "Pagina encontrada"}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Registro tecnico</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
-              Registro tecnico em revisao
-            </p>
-            <h1 className="mt-4 font-heading text-4xl font-semibold tracking-tight">
-              Validacao do incidente
-            </h1>
-            <p className="mt-3 max-w-3xl text-base text-muted-foreground">
-              Este detalhe mostra um placement tecnico dentro de um incidente agrupado
-              por imagem e site. Use as abas para separar pagina, evidencias e dados
-              do dominio sem perder o contexto.
-            </p>
-          </div>
-
+    <section className="flex w-full flex-1 flex-col gap-5 px-4 py-6 md:px-8">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-1.5">
-              <Badge variant={getDetectionStatusVariant(detection.status)}>
-                {formatDetectionStatus(detection.status)}
-              </Badge>
-              <InfoTooltip content={getDetectionStatusHelp(detection.status)} />
-            </div>
-            {detection.latestEvidence ? (
-              <div className="inline-flex items-center gap-1.5">
-                <Badge variant={getEvidenceStatusVariant(detection.latestEvidence.captureStatus)}>
-                  Evidencia: {formatEvidenceStatus(detection.latestEvidence.captureStatus)}
-                </Badge>
-                <InfoTooltip
-                  content={getEvidenceStatusHelp(detection.latestEvidence.captureStatus)}
-                />
-              </div>
-            ) : null}
-            <div className="inline-flex items-center gap-1.5">
-              <Badge variant={getEvidenceCoverageVariant(detection.incident.evidenceCoverage)}>
-                {formatEvidenceCoverage(detection.incident.evidenceCoverage)}
-              </Badge>
-              <InfoTooltip
-                content={getEvidenceCoverageHelp(detection.incident.evidenceCoverage)}
-              />
-            </div>
+            <Link
+              href="/detections"
+              className="text-sm text-muted-foreground underline underline-offset-4"
+            >
+              Ocorrencias
+            </Link>
+            <span className="text-sm text-muted-foreground">/</span>
+            <span className="break-all text-sm font-medium text-foreground">
+              {formatDomain(detection.incident.domain)}
+            </span>
           </div>
+          <h1 className="mt-2 font-heading text-2xl font-semibold tracking-tight md:text-3xl">
+            Validar uso encontrado
+          </h1>
         </div>
-
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button asChild variant="outline">
-            <Link href="/detections">Voltar para incidentes</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`/gallery/${detection.asset.id}`}>Abrir imagem na galeria</Link>
-          </Button>
-          <Button asChild>
-            <a href={detection.sourceUrl} target="_blank" rel="noreferrer">
-              Abrir pagina encontrada
-            </a>
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={getDetectionStatusVariant(detection.incident.incidentStatus)}>
+            {formatDetectionStatus(detection.incident.incidentStatus)}
+          </Badge>
+          <Badge variant={getEvidenceCoverageVariant(detection.incident.evidenceCoverage)}>
+            {formatEvidenceCoverage(detection.incident.evidenceCoverage)}
+          </Badge>
         </div>
-      </div>
+      </header>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-border bg-muted/25 p-4">
-              <p className="text-sm text-muted-foreground">Similaridade</p>
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {formatSimilarityScore(detection.confidenceScore)}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-border bg-muted/25 p-4">
-              <p className="text-sm text-muted-foreground">Pagina atual</p>
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {detection.currentPage?.placementsCount ?? 1} placement(s)
-              </p>
-            </div>
-            <div className="rounded-2xl border border-border bg-muted/25 p-4">
-              <p className="text-sm text-muted-foreground">Incidente no site</p>
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {detection.incident.pagesCount} pagina(s)
-              </p>
-            </div>
-            <div className="rounded-2xl border border-border bg-muted/25 p-4">
-              <p className="text-sm text-muted-foreground">Ultima aparicao</p>
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {formatDate(detection.lastSeenAt)}
-              </p>
-            </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <main className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ImagePanel
+              title="Imagem original"
+              imageUrl={detection.asset.primaryImageUrl}
+              alt={detection.asset.title}
+              fallback="A imagem principal ainda nao possui preview disponivel."
+            />
+            <ImagePanel
+              title="Imagem encontrada"
+              imageUrl={matchedImageUrl}
+              alt={`Imagem encontrada para a ocorrencia ${detection.id}`}
+              fallback="A imagem encontrada ainda nao foi preservada pelo worker."
+            />
           </div>
 
-          <div className="mt-6">
+          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
             <DetectionDetailsTabs
-              assetTitle={detection.asset.title}
-              assetImageUrl={detection.asset.primaryImageUrl}
               detectionId={detection.id}
               currentSourceUrl={detection.sourceUrl}
-              matchedImageUrl={
-                comparisonEvidence?.matchedImageUrl ?? detection.matchedImageUrl ?? null
-              }
               matchedImageSourceUrl={
                 comparisonEvidence?.matchedImageSourceUrl ?? detection.matchedImageUrl ?? null
               }
@@ -212,102 +160,91 @@ export default async function DetectionDetailsPage({
               incident={detection.incident}
               currentPage={detection.currentPage}
             />
-          </div>
-        </section>
+          </section>
+        </main>
 
-        <aside className="space-y-6">
-          <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-            <h2 className="font-heading text-2xl font-semibold tracking-tight">
-              Decisao
+        <aside className="space-y-4">
+          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+            <h2 className="font-heading text-xl font-semibold tracking-tight">
+              Decisao do grupo
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Uma deteccao nao significa automaticamente infracao. Escolha o
-              status que melhor representa a analise humana deste registro.
+              A decisao abaixo vale para esta imagem neste dominio.
             </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <StatusActionButton
+            <div className="mt-4 grid gap-2">
+              <DecisionButton
                 detectionId={detection.id}
-                nextStatus="possible_infringement"
-                label="Possivel infracao"
+                nextStatus="ignored"
+                label="Nao e a mesma imagem"
+                reason="not_same_image"
               />
-              <StatusActionButton
-                detectionId={detection.id}
-                nextStatus="unauthorized"
-                label="Uso nao autorizado"
-              />
-              <StatusActionButton
+              <DecisionButton
                 detectionId={detection.id}
                 nextStatus="authorized"
                 label="Uso autorizado"
               />
-              <StatusActionButton
+              <DecisionButton
                 detectionId={detection.id}
-                nextStatus="resolved"
-                label="Resolvido"
+                nextStatus="unauthorized"
+                label="Uso nao autorizado"
+                variant="default"
               />
-              <StatusActionButton
+              <DecisionButton
                 detectionId={detection.id}
-                nextStatus="ignored"
-                label="Ignorar"
+                nextStatus="pending"
+                label="Revisar depois"
               />
             </div>
           </section>
 
-          <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-            <h2 className="font-heading text-2xl font-semibold tracking-tight">
-              Contexto do incidente
+          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+            <h2 className="font-heading text-xl font-semibold tracking-tight">
+              Site autorizado
             </h2>
-            <div className="mt-5 space-y-3 text-sm text-muted-foreground">
-              <p>
-                O cliente revisa este caso como um incidente do site{" "}
-                <span className="text-foreground">
-                  {formatDomain(detection.incident.domain)}
-                </span>
-                . Este registro tecnico faz parte desse agrupamento.
-              </p>
-              <div className="rounded-2xl border border-border bg-muted/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Pagina encontrada
+            <p className="mt-2 text-sm text-muted-foreground">
+              A lista de dominios autorizados entra em uma proxima etapa. Por enquanto,
+              marque o grupo como uso autorizado.
+            </p>
+            <Button className="mt-4 w-full" disabled size="sm" variant="outline">
+              Adicionar dominio autorizado
+            </Button>
+          </section>
+
+          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+            <h2 className="font-heading text-xl font-semibold tracking-tight">
+              Contexto
+            </h2>
+            <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.16em]">
+                  Imagem
                 </p>
-                <a
-                  href={detection.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 block break-all text-sm text-foreground underline underline-offset-4"
+                <Link
+                  href="/gallery"
+                  className="mt-1 block text-foreground underline underline-offset-4"
                 >
-                  {detection.sourceUrl}
+                  {detection.asset.title}
+                </Link>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.16em]">
+                  Dominio
+                </p>
+                <p className="mt-1 break-all text-foreground">
+                  {formatDomain(detection.incident.domain)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.16em]">
+                  Ultimo achado
+                </p>
+                <p className="mt-1 text-foreground">{formatDate(detection.lastSeenAt)}</p>
+              </div>
+              <Button asChild className="w-full" size="sm" variant="outline">
+                <a href={detection.sourceUrl} target="_blank" rel="noreferrer">
+                  Abrir pagina encontrada
                 </a>
-                {detection.pageTitle ? (
-                  <p className="mt-3">
-                    Titulo detectado: <span className="text-foreground">{detection.pageTitle}</span>
-                  </p>
-                ) : null}
-                {detection.reviewedByName ? (
-                  <p className="mt-2">
-                    Ultima revisao por{" "}
-                    <span className="text-foreground">{detection.reviewedByName}</span>.
-                  </p>
-                ) : null}
-              </div>
-              <div className="rounded-2xl border border-border bg-muted/20 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    Incidente agrupado
-                  </span>
-                  <Badge variant="outline">{detection.incident.pagesCount} pagina(s)</Badge>
-                </div>
-                <p className="mt-3 text-foreground">
-                  {detection.incident.placementsCount} placement(s) tecnicos
-                  distribuidos no mesmo site.
-                </p>
-                <p className="mt-2">
-                  Primeira aparicao em{" "}
-                  <span className="text-foreground">
-                    {formatDate(detection.incident.firstSeenAt)}
-                  </span>
-                  .
-                </p>
-              </div>
+              </Button>
             </div>
           </section>
         </aside>

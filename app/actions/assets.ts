@@ -59,6 +59,15 @@ const renameFolderSchema = z.object({
     .max(120, "Use no maximo 120 caracteres para o nome da pasta."),
 });
 
+const toggleMonitoringSchema = z.object({
+  assetId: z.uuid(),
+  nextIsActive: z.enum(["true", "false"]).transform((value) => value === "true"),
+});
+
+const archiveAssetSchema = z.object({
+  assetId: z.uuid(),
+});
+
 export type AssetBatchActionState = {
   message?: string;
   status?: "error";
@@ -70,6 +79,13 @@ export type FolderActionState = {
 };
 
 export type RenameActionState = FolderActionState;
+
+export type MonitoringToggleActionState = {
+  message?: string;
+  status?: "error" | "success";
+};
+
+export type ArchiveAssetActionState = MonitoringToggleActionState;
 
 type BatchProcessingResult = {
   createdCount: number;
@@ -637,7 +653,6 @@ export async function renameAssetAction(
     }
 
     revalidatePath("/gallery");
-    revalidatePath(`/gallery/${parsed.data.assetId}`);
     revalidatePath("/detections");
     refresh();
 
@@ -818,4 +833,188 @@ export async function switchAssetMonitoringFrequencyAction(formData: FormData) {
     .eq("is_active", true);
 
   refresh();
+}
+
+export async function toggleAssetMonitoringAction(
+  _: MonitoringToggleActionState,
+  formData: FormData,
+): Promise<MonitoringToggleActionState> {
+  const parsed = toggleMonitoringSchema.safeParse({
+    assetId: formData.get("assetId"),
+    nextIsActive: formData.get("nextIsActive"),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Dados invalidos.",
+    };
+  }
+
+  try {
+    const { organizationId, userId } = await requireWritableOrganization();
+    const supabase = await createClient();
+    const { data: assetData, error: assetError } = await supabase
+      .from("assets")
+      .select("id, title")
+      .eq("organization_id", organizationId)
+      .eq("id", parsed.data.assetId)
+      .is("archived_at", null)
+      .maybeSingle();
+    const asset = assetData as { id: string; title: string } | null;
+
+    if (assetError || !asset) {
+      throw new Error("Imagem nao encontrada para esta organizacao.");
+    }
+
+    const { data: monitoringRuleData, error: monitoringRuleError } = await supabase
+      .from("monitoring_rules")
+      .select("id, frequency")
+      .eq("organization_id", organizationId)
+      .eq("asset_id", parsed.data.assetId)
+      .is("archived_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const monitoringRule = monitoringRuleData as {
+      id: string;
+      frequency: MonitoringRuleFrequency;
+    } | null;
+
+    if (monitoringRuleError) {
+      throw new Error("Nao foi possivel localizar a regra de monitoramento.");
+    }
+
+    if (monitoringRule) {
+      const nextRunAt = parsed.data.nextIsActive
+        ? getDefaultNextRunAt(monitoringRule.frequency)
+        : null;
+      const { error: updateError } = await supabase
+        .from("monitoring_rules")
+        .update({
+          is_active: parsed.data.nextIsActive,
+          next_run_at: nextRunAt,
+        })
+        .eq("organization_id", organizationId)
+        .eq("id", monitoringRule.id);
+
+      if (updateError) {
+        throw new Error("Nao foi possivel atualizar o monitoramento agora.");
+      }
+    } else {
+      if (!parsed.data.nextIsActive) {
+        return {
+          status: "success",
+          message: "Esta imagem ja estava sem monitoramento automatico.",
+        };
+      }
+
+      const frequency: MonitoringRuleFrequency = "daily";
+      const { error: insertError } = await supabase.from("monitoring_rules").insert({
+        organization_id: organizationId,
+        asset_id: parsed.data.assetId,
+        name: `Monitoramento - ${asset.title}`,
+        frequency,
+        is_active: true,
+        next_run_at: getDefaultNextRunAt(frequency),
+        created_by_user_id: userId,
+      });
+
+      if (insertError) {
+        throw new Error("Nao foi possivel ativar o monitoramento agora.");
+      }
+    }
+
+    revalidatePath("/gallery");
+    refresh();
+
+    return {
+      status: "success",
+      message: parsed.data.nextIsActive
+        ? "Monitoramento ativado."
+        : "Monitoramento desativado.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel atualizar o monitoramento agora.",
+    };
+  }
+}
+
+export async function archiveAssetAction(
+  _: ArchiveAssetActionState,
+  formData: FormData,
+): Promise<ArchiveAssetActionState> {
+  const parsed = archiveAssetSchema.safeParse({
+    assetId: formData.get("assetId"),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Dados invalidos.",
+    };
+  }
+
+  try {
+    const { organizationId } = await requireWritableOrganization();
+    const supabase = await createClient();
+    const { data: asset, error: assetError } = await supabase
+      .from("assets")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("id", parsed.data.assetId)
+      .is("archived_at", null)
+      .maybeSingle();
+
+    if (assetError || !asset) {
+      throw new Error("Imagem nao encontrada para esta organizacao.");
+    }
+
+    const archivedAt = new Date().toISOString();
+    const { error: updateError } = await supabase
+      .from("assets")
+      .update({
+        status: "archived",
+        archived_at: archivedAt,
+      })
+      .eq("organization_id", organizationId)
+      .eq("id", parsed.data.assetId);
+
+    if (updateError) {
+      throw new Error("Nao foi possivel remover esta imagem agora.");
+    }
+
+    await supabase
+      .from("monitoring_rules")
+      .update({
+        is_active: false,
+        next_run_at: null,
+        archived_at: archivedAt,
+      })
+      .eq("organization_id", organizationId)
+      .eq("asset_id", parsed.data.assetId)
+      .is("archived_at", null);
+
+    revalidatePath("/gallery");
+    revalidatePath("/detections");
+    refresh();
+
+    return {
+      status: "success",
+      message: "Imagem removida da galeria.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel remover esta imagem agora.",
+    };
+  }
 }

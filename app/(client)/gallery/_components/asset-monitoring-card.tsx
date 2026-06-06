@@ -1,5 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
+import { ArchiveAssetForm } from "@/app/(client)/gallery/_components/archive-asset-form";
+import { AssetMonitoringToggle } from "@/app/(client)/gallery/_components/asset-monitoring-toggle";
+import { RenameAssetTitleForm } from "@/app/(client)/gallery/_components/rename-asset-title-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { AssetListItem, MonitoringRuleFrequency } from "@/lib/dal/assets";
@@ -52,28 +56,16 @@ function translateJobStatus(status: LatestScanJobStatus | undefined) {
   }
 }
 
-function buildClientSummary(asset: AssetListItem) {
-  if (asset.statusSummary.kind === "completed_with_detections") {
-    return `${asset.detectionsCount} ocorrencia(s) aguardando validacao humana.`;
+function getMonitoringLabel(asset: AssetListItem) {
+  if (!asset.monitoringRule) {
+    return "Sem agenda";
   }
 
-  if (asset.statusSummary.kind === "completed_without_detections") {
-    return "Nenhum uso encontrado na ultima busca.";
+  if (!asset.monitoringRule.isActive) {
+    return "Desativado";
   }
 
-  if (asset.statusSummary.kind === "failed") {
-    return "Nao conseguimos concluir a ultima busca. Tente novamente.";
-  }
-
-  if (asset.statusSummary.kind === "pending") {
-    return "A imagem entrou na fila e sera analisada em breve.";
-  }
-
-  if (asset.statusSummary.kind === "idle") {
-    return "Esta imagem ainda nao teve uma busca iniciada.";
-  }
-
-  return "Estamos analisando esta imagem e reunindo os primeiros resultados.";
+  return translateFrequency(asset.monitoringRule.frequency);
 }
 
 export function AssetMonitoringCard({
@@ -87,9 +79,20 @@ export function AssetMonitoringCard({
 }) {
   if (viewMode === "rows") {
     return (
-      <article className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <article className="rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-          <div className="relative h-24 overflow-hidden rounded-xl border border-border bg-muted/30 sm:w-28 lg:h-20 lg:w-20 xl:h-24 xl:w-24">
+          <div className="relative h-24 overflow-hidden rounded-md border border-border bg-muted/30 sm:w-28 lg:h-20 lg:w-20 xl:h-24 xl:w-24">
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-14 bg-gradient-to-b from-black/35 to-transparent" />
+            <div className="absolute left-2 top-2 z-10">
+              <ArchiveAssetForm assetId={asset.id} floating />
+            </div>
+            <div className="absolute right-2 top-2 z-10">
+              <AssetMonitoringToggle
+                assetId={asset.id}
+                isActive={asset.monitoringRule?.isActive ?? false}
+                floating
+              />
+            </div>
             {asset.primaryFile?.publicUrl ? (
               <Image
                 src={asset.primaryFile.publicUrl}
@@ -121,26 +124,19 @@ export function AssetMonitoringCard({
                     {asset.statusSummary.label}
                   </Badge>
                 </div>
-                <h2 className="mt-1 truncate text-base font-semibold tracking-tight text-foreground">
-                  {asset.title}
-                </h2>
-                <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                  {buildClientSummary(asset)}
-                </p>
+                <div className="mt-2 max-w-xl">
+                  <RenameAssetTitleForm
+                    assetId={asset.id}
+                    currentTitle={asset.title}
+                    compact
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground sm:grid-cols-4 xl:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground sm:grid-cols-3 xl:grid-cols-2">
                 <div>
                   <p className="font-medium text-foreground">Busca</p>
-                  <p className="truncate">
-                    {asset.monitoringRule
-                      ? translateFrequency(asset.monitoringRule.frequency)
-                      : "Sem agenda"}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">Resultados</p>
-                  <p>{asset.detectionsCount} ocorrencia(s)</p>
+                  <p className="truncate">{getMonitoringLabel(asset)}</p>
                 </div>
                 <div>
                   <p className="font-medium text-foreground">Ultima busca</p>
@@ -153,12 +149,11 @@ export function AssetMonitoringCard({
               </div>
 
               <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                <Button asChild size="sm">
-                  <Link href={`/gallery/${asset.id}`}>Abrir imagem</Link>
-                </Button>
-
                 <Button asChild size="sm" variant="secondary">
-                  <Link href={`/detections?asset=${asset.id}`}>Ver ocorrencias</Link>
+                  <Link href={`/detections?asset=${asset.id}`}>
+                    <ExternalLink className="size-4" aria-hidden="true" />
+                    Ocorrencias
+                  </Link>
                 </Button>
               </div>
             </div>
@@ -169,8 +164,19 @@ export function AssetMonitoringCard({
   }
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-border bg-card p-3 shadow-sm">
-      <div className="relative aspect-square overflow-hidden rounded-xl border border-border bg-muted/30">
+    <article className="group overflow-hidden rounded-lg border border-border bg-card p-2 shadow-sm transition-shadow hover:shadow-md">
+      <div className="relative aspect-square overflow-hidden rounded-md bg-muted/30">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-black/40 to-transparent" />
+        <div className="absolute left-2.5 top-2.5 z-20">
+          <ArchiveAssetForm assetId={asset.id} floating />
+        </div>
+        <div className="absolute right-2.5 top-2.5 z-20">
+          <AssetMonitoringToggle
+            assetId={asset.id}
+            isActive={asset.monitoringRule?.isActive ?? false}
+            floating
+          />
+        </div>
         {asset.primaryFile?.publicUrl ? (
           <Image
             src={asset.primaryFile.publicUrl}
@@ -179,7 +185,7 @@ export function AssetMonitoringCard({
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1536px) 25vw, 20vw"
             loading={prioritizeImage ? "eager" : "lazy"}
             priority={prioritizeImage}
-            className="object-cover"
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (
           <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
@@ -188,56 +194,47 @@ export function AssetMonitoringCard({
         )}
       </div>
 
-      <div className="mt-3 space-y-3">
+      <div className="space-y-2.5 px-1 pb-1 pt-2.5">
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
+          <div className="min-w-0 pt-0.5">
             <p className="truncate text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
               {asset.folder?.name ?? "Sem pasta"}
             </p>
-            <h2 className="mt-1 line-clamp-2 text-sm font-semibold tracking-tight text-foreground">
-              {asset.title}
-            </h2>
           </div>
 
           <Badge
             variant={getStatusVariant(asset.statusSummary.kind)}
-            className="max-w-[7rem] shrink-0 truncate text-[10px]"
+            className="max-w-[7rem] shrink-0 truncate rounded-full px-2 py-0 text-[10px] font-medium"
           >
             {asset.statusSummary.label}
           </Badge>
         </div>
 
-        <p className="line-clamp-2 text-[11px] text-muted-foreground">
-          {buildClientSummary(asset)}
-        </p>
+        <RenameAssetTitleForm
+          assetId={asset.id}
+          currentTitle={asset.title}
+          compact
+        />
 
-        <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-          <div className="rounded-xl bg-muted/30 px-2 py-2">
-            <p className="truncate font-medium text-foreground">Busca</p>
-            <p className="truncate">
-              {asset.monitoringRule
-                ? translateFrequency(asset.monitoringRule.frequency)
-                : "Sem agenda"}
-            </p>
-          </div>
-          <div className="rounded-xl bg-muted/30 px-2 py-2">
-            <p className="truncate font-medium text-foreground">Resultados</p>
-            <p>{asset.detectionsCount} ocorrencia(s)</p>
-          </div>
+        <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="truncate">{getMonitoringLabel(asset)}</span>
+          <span className="size-1 rounded-full bg-muted-foreground/35" aria-hidden="true" />
+          <span className="truncate">
+            Ultima busca: {translateJobStatus(asset.latestScanJob?.status)}
+          </span>
         </div>
 
-        <div className="text-[11px] text-muted-foreground">
-          <span className="font-medium text-foreground">Ultima busca:</span>{" "}
-          {translateJobStatus(asset.latestScanJob?.status)}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Button asChild size="sm" className="w-full">
-            <Link href={`/gallery/${asset.id}`}>Abrir</Link>
-          </Button>
-
-          <Button asChild size="sm" variant="secondary" className="w-full">
-            <Link href={`/detections?asset=${asset.id}`}>Ocorrencias</Link>
+        <div className="flex items-center">
+          <Button
+            asChild
+            size="sm"
+            variant="secondary"
+            className="h-8 w-full min-w-0 bg-muted/45 shadow-none hover:bg-muted"
+          >
+            <Link href={`/detections?asset=${asset.id}`}>
+              <ExternalLink className="size-4" aria-hidden="true" />
+              Ocorrencias
+            </Link>
           </Button>
         </div>
       </div>

@@ -28,7 +28,7 @@ export function formatDetectionStatus(status: string) {
     case "pending":
       return "Aguardando validacao";
     case "possible_infringement":
-      return "Possivel infracao";
+      return "Uso nao autorizado";
     case "authorized":
       return "Uso autorizado";
     case "unauthorized":
@@ -49,7 +49,7 @@ export function getDetectionStatusHelp(status: string) {
     case "pending":
       return "A ocorrencia foi encontrada, mas ainda precisa da sua analise.";
     case "possible_infringement":
-      return "Ha sinais de uso indevido, mas a confirmacao final ainda depende da sua avaliacao.";
+      return "Este registro veio do fluxo anterior e esta sendo tratado como uso nao autorizado na interface.";
     case "authorized":
       return "O uso encontrado foi considerado permitido ou esperado.";
     case "unauthorized":

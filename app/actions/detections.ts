@@ -16,8 +16,46 @@ const updateDetectionStatusSchema = z.object({
     "resolved",
     "ignored",
   ]),
+  scope: z.enum(["single", "incident"]).default("single"),
+  reason: z.string().trim().max(120).optional(),
   redirectTo: z.string().trim().min(1),
 });
+
+type DetectionActionRow = {
+  id: string;
+  asset_id: string;
+  source_url: string;
+  canonical_source_url: string;
+  domain: string | null;
+  status: string;
+};
+
+function parseNormalizedDomain(params: {
+  domain: string | null;
+  source_url: string;
+  canonical_source_url: string;
+}) {
+  const candidates = [params.domain, params.source_url, params.canonical_source_url];
+
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+
+    try {
+      const host = candidate.includes("://") ? new URL(candidate).hostname : candidate;
+      const normalized = host.trim().toLowerCase().replace(/^www\./, "");
+
+      if (normalized) {
+        return normalized;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return "site-nao-identificado";
+}
 
 function getActionLabel(nextStatus: string) {
   switch (nextStatus) {
@@ -42,6 +80,8 @@ export async function updateDetectionStatusAction(formData: FormData) {
   const parsed = updateDetectionStatusSchema.safeParse({
     detectionId: formData.get("detectionId"),
     nextStatus: formData.get("nextStatus"),
+    scope: formData.get("scope") ?? "single",
+    reason: formData.get("reason") ?? undefined,
     redirectTo: formData.get("redirectTo"),
   });
 
@@ -53,7 +93,7 @@ export async function updateDetectionStatusAction(formData: FormData) {
   const supabase = await createClient();
   const { data: detection, error: detectionError } = await supabase
     .from("detections")
-    .select("id, asset_id, status")
+    .select("id, asset_id, source_url, canonical_source_url, domain, status")
     .eq("organization_id", organizationId)
     .eq("id", parsed.data.detectionId)
     .maybeSingle();
@@ -62,9 +102,35 @@ export async function updateDetectionStatusAction(formData: FormData) {
     throw new Error("Ocorrencia nao encontrada para esta organizacao.");
   }
 
-  if (detection.status === parsed.data.nextStatus) {
+  const representative = detection as DetectionActionRow;
+  let targetDetections = [representative];
+
+  if (parsed.data.scope === "incident") {
+    const representativeDomain = parseNormalizedDomain(representative);
+    const { data: siblingDetections, error: siblingError } = await supabase
+      .from("detections")
+      .select("id, asset_id, source_url, canonical_source_url, domain, status")
+      .eq("organization_id", organizationId)
+      .eq("asset_id", representative.asset_id)
+      .is("archived_at", null);
+
+    if (siblingError) {
+      throw new Error("Nao foi possivel carregar o grupo desta ocorrencia.");
+    }
+
+    targetDetections = ((siblingDetections ?? []) as DetectionActionRow[]).filter(
+      (item) => parseNormalizedDomain(item) === representativeDomain,
+    );
+  }
+
+  const detectionsToUpdate = targetDetections.filter(
+    (item) => item.status !== parsed.data.nextStatus,
+  );
+
+  if (detectionsToUpdate.length === 0) {
     revalidatePath("/detections");
-    revalidatePath(`/detections/${detection.id}`);
+    revalidatePath(`/detections/${representative.id}`);
+    revalidatePath("/cases");
     return;
   }
 
@@ -77,27 +143,37 @@ export async function updateDetectionStatusAction(formData: FormData) {
       reviewed_by_user_id: userId,
     })
     .eq("organization_id", organizationId)
-    .eq("id", detection.id);
+    .in(
+      "id",
+      detectionsToUpdate.map((item) => item.id),
+    );
 
   if (updateError) {
     throw new Error("Nao foi possivel salvar a avaliacao desta ocorrencia.");
   }
 
-  const { error: actionError } = await supabase.from("detection_actions").insert({
+  const actionRows = detectionsToUpdate.map((item) => ({
     organization_id: organizationId,
-    detection_id: detection.id,
+    detection_id: item.id,
     user_id: userId,
     action: getActionLabel(parsed.data.nextStatus),
-    from_status: detection.status,
+    from_status: item.status,
     to_status: parsed.data.nextStatus,
-    metadata: {},
-  });
+    metadata: {
+      scope: parsed.data.scope,
+      representativeDetectionId: representative.id,
+      reason: parsed.data.reason ?? null,
+    },
+  }));
+
+  const { error: actionError } = await supabase.from("detection_actions").insert(actionRows);
 
   if (actionError) {
     throw new Error("Nao foi possivel registrar o historico da ocorrencia.");
   }
 
   revalidatePath("/detections");
-  revalidatePath(`/detections/${detection.id}`);
-  revalidatePath(`/gallery/${detection.asset_id}`);
+  revalidatePath("/cases");
+  revalidatePath(`/detections/${representative.id}`);
+  revalidatePath("/gallery");
 }

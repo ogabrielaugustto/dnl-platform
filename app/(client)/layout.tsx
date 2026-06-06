@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import {
   BellIcon,
+  BriefcaseIcon,
   FolderKanbanIcon,
   GaugeIcon,
   SearchCheckIcon,
@@ -15,6 +16,7 @@ const clientNavigation = [
   { title: "Inicio", url: "/dashboard", icon: <GaugeIcon /> },
   { title: "Galeria", url: "/gallery", icon: <FolderKanbanIcon /> },
   { title: "Ocorrencias", url: "/detections", icon: <SearchCheckIcon /> },
+  { title: "Casos", url: "/cases", icon: <BriefcaseIcon /> },
 ];
 
 const clientSecondaryNavigation = [

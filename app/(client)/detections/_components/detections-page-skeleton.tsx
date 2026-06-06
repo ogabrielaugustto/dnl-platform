@@ -2,46 +2,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function DetectionsPageSkeleton() {
   return (
-    <section className="flex w-full flex-1 flex-col gap-6 px-6 py-10 md:px-8">
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <Skeleton className="h-3 w-32 rounded-full" />
-        <Skeleton className="mt-4 h-10 w-full max-w-md rounded-full" />
-        <Skeleton className="mt-3 h-4 w-full max-w-3xl" />
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="rounded-2xl border border-border bg-muted/30 p-4">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="mt-3 h-8 w-16" />
-            </div>
-          ))}
-        </div>
+    <section className="flex w-full flex-1 flex-col gap-5 px-4 py-6 md:px-8">
+      <div className="border-b border-border pb-4">
+        <Skeleton className="h-3 w-28 rounded-full" />
+        <Skeleton className="mt-3 h-8 w-full max-w-sm rounded-full" />
+        <Skeleton className="mt-2 h-4 w-full max-w-md" />
       </div>
 
-      <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm md:px-5">
-        <Skeleton className="h-9 w-full max-w-xl rounded-full" />
+      <div className="rounded-lg border border-border bg-card px-3 py-3 shadow-sm">
+        <Skeleton className="h-8 w-full max-w-2xl rounded-full" />
       </div>
 
-      <div className="space-y-4">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-            <div className="grid gap-5 xl:grid-cols-[220px_1fr]">
-              <Skeleton className="min-h-48 rounded-2xl" />
-              <div className="space-y-4">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-8 w-full max-w-md" />
-                <Skeleton className="h-4 w-full max-w-lg" />
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  {Array.from({ length: 4 }).map((__, cardIndex) => (
-                    <div
-                      key={cardIndex}
-                      className="rounded-2xl border border-border bg-muted/25 p-3"
-                    >
-                      <Skeleton className="h-3 w-24" />
-                      <Skeleton className="mt-3 h-4 w-20" />
-                    </div>
-                  ))}
-                </div>
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="border-b border-border px-4 py-4 last:border-b-0">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-14 rounded-md" />
+              <div className="min-w-0 flex-1">
+                <Skeleton className="h-4 w-full max-w-xs" />
+                <Skeleton className="mt-2 h-6 w-40 rounded-full" />
               </div>
+              <Skeleton className="hidden h-8 w-24 rounded-full md:block" />
             </div>
           </div>
         ))}

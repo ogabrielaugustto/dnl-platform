@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { AssetFolderFilter } from "@/app/(client)/gallery/_components/asset-folder-filter";
 import { AssetMonitoringCard } from "@/app/(client)/gallery/_components/asset-monitoring-card";
 import { RenameFolderForm } from "@/app/(client)/gallery/_components/rename-folder-form";
@@ -55,37 +56,42 @@ export default async function GalleryPage({ searchParams }: AssetsPageProps) {
   const flashMessage = buildFlashMessage(params);
   const totalAssetsCount = allAssets.length;
   const unassignedCount = allAssets.filter((asset) => !asset.folder).length;
-  const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
+  const activeFolder =
+    folders.find((folder) => folder.id === activeFolderId) ?? null;
 
   return (
-    <section className="flex w-full flex-1 flex-col gap-6 px-6 py-10 md:px-8">
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+    <section className="flex w-full flex-1 flex-col gap-5 px-4 py-6 md:px-8">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+            Galeria
+          </p>
           <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
-              Galeria
-            </p>
-            <h1 className="mt-4 font-heading text-4xl font-semibold tracking-tight">
-              Imagens da sua galeria
+            <h1 className="mt-2 font-heading text-2xl font-semibold tracking-tight md:text-3xl">
+              Imagens monitoradas
             </h1>
-            <p className="mt-3 max-w-3xl text-base text-muted-foreground">
-              Use esta area para subir imagens, organizar por pastas, filtrar a
-              visualizacao e manter os nomes da galeria em ordem. Analises,
-              ocorrencias e evidencias continuam centralizadas nas outras paginas.
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Edite nomes, organize pastas, ative monitoramento e revise
+              ocorrencias direto na lista.
             </p>
           </div>
-
-          <Button asChild size="lg">
-            <Link href="/gallery/new">Adicionar imagens</Link>
-          </Button>
         </div>
 
-        {flashMessage ? (
-          <div className="mt-6 rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
+        <Button asChild size="sm" className="shadow-sm">
+          <Link href="/gallery/new">
+            <Plus className="size-4" aria-hidden="true" />
+            Adicionar imagem
+          </Link>
+        </Button>
+      </header>
+
+      {flashMessage ? (
+        <div className="flex flex-col gap-2">
+          <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
             {flashMessage}
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <AssetFolderFilter
         folders={folders}
@@ -105,7 +111,7 @@ export default async function GalleryPage({ searchParams }: AssetsPageProps) {
       ) : null}
 
       {assets.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border bg-card/60 p-10 text-center shadow-sm">
+        <div className="rounded-lg border border-dashed border-border bg-card/60 p-8 text-center shadow-sm">
           <h2 className="font-heading text-2xl font-semibold tracking-tight">
             Nenhuma imagem encontrada neste recorte
           </h2>
@@ -131,7 +137,7 @@ export default async function GalleryPage({ searchParams }: AssetsPageProps) {
             <AssetMonitoringCard
               key={asset.id}
               asset={asset}
-              prioritizeImage={index === 0}
+              prioritizeImage={index < 5}
               viewMode={viewMode}
             />
           ))}

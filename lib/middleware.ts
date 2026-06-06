@@ -6,6 +6,7 @@ const protectedPrefixes = [
   '/gallery',
   '/assets',
   '/detections',
+  '/cases',
   '/reports',
   '/settings',
   '/admin',

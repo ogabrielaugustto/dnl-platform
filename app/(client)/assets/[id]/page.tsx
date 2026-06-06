@@ -1,9 +1,6 @@
 import { redirect } from "next/navigation";
 
 type LegacyAssetDetailsPageProps = {
-  params: Promise<{
-    id: string;
-  }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
@@ -28,10 +25,9 @@ function buildQueryString(params: Record<string, string | string[] | undefined>)
 }
 
 export default async function LegacyAssetDetailsPage({
-  params,
   searchParams,
 }: LegacyAssetDetailsPageProps) {
-  const [{ id }, currentSearchParams] = await Promise.all([params, searchParams]);
+  const currentSearchParams = await searchParams;
   const query = buildQueryString(currentSearchParams);
-  redirect(`/gallery/${id}${query}`);
+  redirect(`/gallery${query}`);
 }

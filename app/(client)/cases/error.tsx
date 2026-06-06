@@ -6,5 +6,5 @@ export default function Error(props: {
   error: Error & { digest?: string };
   unstable_retry: () => void;
 }) {
-  return <RouteError area="Imagem da galeria" {...props} />;
+  return <RouteError area="Casos" {...props} />;
 }

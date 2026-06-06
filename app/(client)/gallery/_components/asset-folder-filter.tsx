@@ -53,7 +53,7 @@ export function AssetFolderFilter({
   viewMode: AssetViewMode;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm md:px-5">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-3 py-3 shadow-sm">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
@@ -95,33 +95,35 @@ export function AssetFolderFilter({
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            Visualizacao
-          </span>
-          <div className="inline-flex rounded-full border border-border bg-background p-1">
-            <Link
-              href={buildAssetsHref({
-                folder: unassignedSelected
-                  ? "unassigned"
-                  : activeFolderId,
-                viewMode: "cards",
-              })}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${viewClasses(viewMode === "cards")}`}
-            >
-              Grade
-            </Link>
-            <Link
-              href={buildAssetsHref({
-                folder: unassignedSelected
-                  ? "unassigned"
-                  : activeFolderId,
-                viewMode: "rows",
-              })}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${viewClasses(viewMode === "rows")}`}
-            >
-              Lista
-            </Link>
+        <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              Visualizacao
+            </span>
+            <div className="inline-flex rounded-full border border-border bg-background p-1">
+              <Link
+                href={buildAssetsHref({
+                  folder: unassignedSelected
+                    ? "unassigned"
+                    : activeFolderId,
+                  viewMode: "cards",
+                })}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${viewClasses(viewMode === "cards")}`}
+              >
+                Grade
+              </Link>
+              <Link
+                href={buildAssetsHref({
+                  folder: unassignedSelected
+                    ? "unassigned"
+                    : activeFolderId,
+                  viewMode: "rows",
+                })}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${viewClasses(viewMode === "rows")}`}
+              >
+                Lista
+              </Link>
+            </div>
           </div>
         </div>
       </div>
