@@ -7,10 +7,10 @@ export default async function RegisterPage() {
 
   return (
     <AuthShell
-      asideDescription="O cadastro externo cria apenas contas do cliente. O admin entra por uma rota separada e nao possui onboarding publico."
-      asideTitle="Criar conta do cliente"
-      description="Crie a conta inicial do cliente e a primeira organizacao monitorada."
-      eyebrow="Cliente"
+      asideDescription="Crie sua conta para começar a organizar imagens e acompanhar ocorrencias em um unico lugar."
+      asideTitle="Criar conta"
+      description="Cadastre sua conta e o primeiro espaco da sua organizacao."
+      eyebrow="Cadastro"
       title="Cadastro"
     >
       <SignupForm />

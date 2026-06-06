@@ -7,10 +7,10 @@ export default async function LoginPage() {
 
   return (
     <AuthShell
-      asideDescription="Acesse o painel do cliente para cadastrar assets, acompanhar deteccoes e revisar evidencias."
-      asideTitle="Painel do cliente"
-      description="Entre com a conta vinculada a uma organizacao cliente."
-      eyebrow="Cliente"
+      asideDescription="Acesse sua conta para cadastrar imagens, acompanhar ocorrencias e revisar evidencias."
+      asideTitle="Acesso da conta"
+      description="Entre com a conta vinculada a sua organizacao."
+      eyebrow="Acesso"
       title="Entrar"
     >
       <LoginForm panel="client" registerHref="/auth/register" />

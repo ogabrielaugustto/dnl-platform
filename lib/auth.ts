@@ -12,6 +12,7 @@ type ProfileRecord = {
   id: string;
   email: string | null;
   full_name: string | null;
+  avatar_url: string | null;
   system_role: SystemRole;
 };
 
@@ -33,6 +34,7 @@ export type AuthContext = {
   userId: string;
   email: string | null;
   fullName: string | null;
+  avatarUrl: string | null;
   systemRole: SystemRole;
   isAdmin: boolean;
   membership: OrganizationMembership | null;
@@ -54,7 +56,7 @@ async function readAuthContext(): Promise<AuthContext | null> {
   const [{ data: profile }, { data: memberships }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, email, full_name, system_role")
+      .select("id, email, full_name, avatar_url, system_role")
       .eq("id", user.id)
       .maybeSingle<ProfileRecord>(),
     supabase
@@ -85,6 +87,11 @@ async function readAuthContext(): Promise<AuthContext | null> {
       profile?.full_name ??
       (typeof user.user_metadata.full_name === "string"
         ? user.user_metadata.full_name
+        : null),
+    avatarUrl:
+      profile?.avatar_url ??
+      (typeof user.user_metadata.avatar_url === "string"
+        ? user.user_metadata.avatar_url
         : null),
     systemRole,
     isAdmin: systemRole === "admin" || systemRole === "super_admin",

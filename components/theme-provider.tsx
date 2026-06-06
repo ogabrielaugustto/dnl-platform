@@ -34,17 +34,21 @@ export function ThemeProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [theme, setThemeState] = useState<ThemeMode>("light");
+  const [theme, setThemeState] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") {
+      return "light";
+    }
 
-  useEffect(() => {
     const storedTheme = window.localStorage.getItem(
       THEME_STORAGE_KEY,
     ) as ThemeMode | null;
-    const nextTheme = storedTheme === "dark" ? "dark" : "light";
 
-    setThemeState(nextTheme);
-    applyTheme(nextTheme);
-  }, []);
+    return storedTheme === "dark" ? "dark" : "light";
+  });
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({

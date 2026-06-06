@@ -53,11 +53,12 @@ async function getActionContext(): Promise<AuthContext | null> {
   const [{ data: profile }, { data: memberships }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("email, full_name, system_role")
+      .select("email, full_name, avatar_url, system_role")
       .eq("id", user.id)
       .maybeSingle<{
         email: string | null;
         full_name: string | null;
+        avatar_url: string | null;
         system_role: "user" | "admin" | "super_admin";
       }>(),
     supabase
@@ -91,6 +92,11 @@ async function getActionContext(): Promise<AuthContext | null> {
       profile?.full_name ??
       (typeof user.user_metadata.full_name === "string"
         ? user.user_metadata.full_name
+        : null),
+    avatarUrl:
+      profile?.avatar_url ??
+      (typeof user.user_metadata.avatar_url === "string"
+        ? user.user_metadata.avatar_url
         : null),
     systemRole,
     isAdmin: systemRole === "admin" || systemRole === "super_admin",

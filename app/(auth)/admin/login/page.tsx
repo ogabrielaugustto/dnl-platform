@@ -9,9 +9,9 @@ export default async function AdminLoginPage() {
     <AuthShell
       asideDescription="Use esta entrada para operacao interna, suporte, auditoria e gerenciamento global do produto."
       asideTitle="Painel administrativo"
-      description="Entre com uma conta marcada como admin ou super_admin."
-      eyebrow="Admin"
-      title="Entrar no admin"
+      description="Entre com uma conta interna com permissao administrativa."
+      eyebrow="Administracao"
+      title="Entrar na administracao"
     >
       <LoginForm panel="admin" />
     </AuthShell>

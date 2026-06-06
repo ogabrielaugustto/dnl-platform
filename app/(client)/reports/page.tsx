@@ -3,9 +3,9 @@ import { PagePlaceholder } from "@/components/app/page-placeholder";
 export default function ReportsPage() {
   return (
     <PagePlaceholder
-      eyebrow="Client"
-      title="Reports"
-      description="Area inicial para relatorios de evidencia e exportacoes."
+      eyebrow="Painel"
+      title="Relatorios"
+      description="Gere relatorios e acompanhe os materiais reunidos para cada ocorrencia."
     />
   );
 }

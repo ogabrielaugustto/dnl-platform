@@ -12,14 +12,14 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requirePanelAccess } from "@/lib/auth";
 
 const clientNavigation = [
-  { title: "Dashboard", url: "/dashboard", icon: <GaugeIcon /> },
-  { title: "Assets", url: "/assets", icon: <FolderKanbanIcon /> },
-  { title: "Detections", url: "/detections", icon: <SearchCheckIcon /> },
+  { title: "Inicio", url: "/dashboard", icon: <GaugeIcon /> },
+  { title: "Galeria", url: "/gallery", icon: <FolderKanbanIcon /> },
+  { title: "Ocorrencias", url: "/detections", icon: <SearchCheckIcon /> },
 ];
 
 const clientSecondaryNavigation = [
-  { title: "Reports", url: "/reports", icon: <BellIcon /> },
-  { title: "Settings", url: "/settings", icon: <Settings2Icon /> },
+  { title: "Relatorios", url: "/reports", icon: <BellIcon /> },
+  { title: "Configuracoes", url: "/settings", icon: <Settings2Icon /> },
 ];
 
 export default async function ClientLayout({
@@ -39,22 +39,20 @@ export default async function ClientLayout({
       }
     >
       <AppSidebar
-        cta={{
-          label: "Novo asset",
-          url: "/assets/new",
-        }}
         navMain={clientNavigation}
         navSecondary={clientSecondaryNavigation}
         organization={{
           currentOrganizationId: context.membership?.organizationId ?? "",
           currentOrganizationName:
-            context.membership?.organizationName ?? "Client Panel",
+            context.membership?.organizationName ?? "Minha conta",
           organizations: context.organizations,
         }}
         user={{
+          avatar: context.avatarUrl ?? "",
           email: context.email ?? "",
           name: context.fullName ?? context.email ?? "Cliente",
-          profileHref: "/settings",
+          organizationHref: "/settings/organization",
+          profileHref: "/settings/profile",
         }}
         variant="inset"
       />

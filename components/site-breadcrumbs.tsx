@@ -12,15 +12,18 @@ import {
 } from "@/components/ui/breadcrumb";
 
 const labels: Record<string, string> = {
-  admin: "Admin",
-  assets: "Assets",
-  audit: "Audit",
-  dashboard: "Dashboard",
-  detections: "Detections",
-  jobs: "Jobs",
+  admin: "Administracao",
+  assets: "Galeria",
+  audit: "Auditoria",
+  dashboard: "Inicio",
+  detections: "Ocorrencias",
+  gallery: "Galeria",
+  jobs: "Processamentos",
   new: "Novo",
-  reports: "Reports",
-  settings: "Settings",
+  organization: "Minha organizacao",
+  profile: "Perfil",
+  reports: "Relatorios",
+  settings: "Configuracoes",
 };
 
 function getLabel(segment: string) {
@@ -53,7 +56,7 @@ export function SiteBreadcrumbs() {
       : [
           {
             href: isAdmin ? "/admin" : "/dashboard",
-            label: isAdmin ? "Overview" : "Dashboard",
+            label: isAdmin ? "Visao geral" : "Inicio",
           },
         ];
 

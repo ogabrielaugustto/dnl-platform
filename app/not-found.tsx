@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { APP_NAME } from "@/lib/brand";
 
 export default function NotFound() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
       <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
         <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
-          DNL Platform
+          {APP_NAME}
         </p>
         <h1 className="mt-4 font-heading text-3xl font-semibold">
           Pagina nao encontrada

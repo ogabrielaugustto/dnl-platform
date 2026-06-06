@@ -26,7 +26,15 @@ import {
 } from "@/components/ui/sidebar"
 import { signOutAction } from "@/app/actions/auth"
 import { ThemeToggleMenu } from "@/components/theme-toggle-menu"
-import { EllipsisVerticalIcon, CircleUserRoundIcon, CreditCardIcon, BellIcon, LogOutIcon, MoonStarIcon } from "lucide-react"
+import {
+  BellIcon,
+  Building2Icon,
+  CircleUserRoundIcon,
+  CreditCardIcon,
+  EllipsisVerticalIcon,
+  LogOutIcon,
+  MoonStarIcon,
+} from "lucide-react"
 
 export function NavUser({
   user,
@@ -36,6 +44,7 @@ export function NavUser({
     email: string
     avatar: string
     profileHref: string
+    organizationHref?: string
     billingHref?: string
   }
 }) {
@@ -94,21 +103,29 @@ export function NavUser({
               <DropdownMenuItem asChild>
                 <Link href={user.profileHref}>
                   <CircleUserRoundIcon />
-                  Account
+                  Perfil
                 </Link>
               </DropdownMenuItem>
+              {user.organizationHref ? (
+                <DropdownMenuItem asChild>
+                  <Link href={user.organizationHref}>
+                    <Building2Icon />
+                    Organizacao
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
               {user.billingHref ? (
                 <DropdownMenuItem asChild>
                   <Link href={user.billingHref}>
                     <CreditCardIcon />
-                    Billing
+                    Faturamento
                   </Link>
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem asChild>
                 <Link href="/reports">
                   <BellIcon />
-                  Notifications
+                  Notificacoes
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
@@ -127,7 +144,7 @@ export function NavUser({
               <DropdownMenuItem asChild>
                 <button type="submit">
                   <LogOutIcon />
-                  Log out
+                  Sair
                 </button>
               </DropdownMenuItem>
             </form>

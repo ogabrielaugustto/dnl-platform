@@ -3,9 +3,9 @@ import { PagePlaceholder } from "@/components/app/page-placeholder";
 export default function AdminJobsPage() {
   return (
     <PagePlaceholder
-      eyebrow="Admin"
-      title="Admin Jobs"
-      description="Monitoramento inicial de jobs, tentativas, falhas e integracao com o worker."
+      eyebrow="Administracao"
+      title="Processamentos"
+      description="Acompanhe filas, tentativas e falhas dos processamentos internos da plataforma."
     />
   );
 }

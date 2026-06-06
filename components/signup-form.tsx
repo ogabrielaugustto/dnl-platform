@@ -51,7 +51,7 @@ export function SignupForm() {
             type="text"
           />
           <FieldDescription>
-            Este sera o primeiro workspace do cliente dentro da plataforma.
+            Esse nome ajuda a organizar sua conta e as pessoas que vao acessar junto com voce.
           </FieldDescription>
         </Field>
 
@@ -102,7 +102,7 @@ export function SignupForm() {
         ) : null}
 
         <Button disabled={pending} size="lg" type="submit">
-          {pending ? "Criando conta..." : "Criar conta do cliente"}
+          {pending ? "Criando conta..." : "Criar conta"}
         </Button>
       </FieldGroup>
 
@@ -112,7 +112,7 @@ export function SignupForm() {
           className="font-medium text-foreground underline-offset-4 hover:underline"
           href="/auth/login"
         >
-          Entrar no painel do cliente
+          Entrar
         </Link>
       </p>
     </form>

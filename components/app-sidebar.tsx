@@ -24,15 +24,11 @@ type SidebarUser = {
   email: string
   avatar?: string
   profileHref: string
+  organizationHref?: string
   billingHref?: string
 }
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
-  cta?: {
-    label: string
-    url: string
-    icon?: React.ReactNode
-  }
   navMain: SidebarLink[]
   navSecondary: SidebarLink[]
   organization?: {
@@ -48,7 +44,6 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 }
 
 export function AppSidebar({
-  cta,
   navMain,
   navSecondary,
   organization,
@@ -68,7 +63,7 @@ export function AppSidebar({
         ) : null}
       </SidebarHeader>
       <SidebarContent>
-        <NavMain cta={cta} items={navMain} />
+        <NavMain items={navMain} />
         <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
@@ -78,6 +73,7 @@ export function AppSidebar({
             billingHref: user.billingHref,
             email: user.email,
             name: user.name,
+            organizationHref: user.organizationHref,
             profileHref: user.profileHref,
           }}
         />

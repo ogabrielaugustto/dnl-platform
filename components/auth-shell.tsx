@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ScaleIcon } from "lucide-react";
+import { APP_NAME } from "@/lib/brand";
 
 type AuthShellProps = {
   title: string;
@@ -27,7 +28,7 @@ export function AuthShell({
             <span className="flex size-9 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
               <ScaleIcon className="size-5" />
             </span>
-            <span className="font-heading text-lg">Direito Na Lente</span>
+            <span className="font-heading text-lg">{APP_NAME}</span>
           </Link>
           <div className="max-w-md space-y-4">
             <p className="text-sm uppercase tracking-[0.3em] text-white/70">
@@ -49,7 +50,7 @@ export function AuthShell({
             <span className="flex size-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
               <ScaleIcon className="size-5" />
             </span>
-            <span className="font-heading text-lg">Direito Na Lente</span>
+            <span className="font-heading text-lg">{APP_NAME}</span>
           </Link>
         </div>
 

@@ -57,14 +57,14 @@ export function LoginForm({ panel, registerHref }: LoginFormProps) {
             type="password"
           />
           <FieldDescription>
-            Use a mesma conta Supabase vinculada ao painel correto.
+            Use o mesmo e-mail cadastrado para acessar sua conta.
           </FieldDescription>
         </Field>
 
         {state?.message ? <FieldError>{state.message}</FieldError> : null}
 
         <Button disabled={pending} size="lg" type="submit">
-          {pending ? "Entrando..." : panel === "admin" ? "Entrar no admin" : "Entrar no painel"}
+          {pending ? "Entrando..." : panel === "admin" ? "Entrar na administracao" : "Entrar"}
         </Button>
       </FieldGroup>
 
@@ -77,7 +77,7 @@ export function LoginForm({ panel, registerHref }: LoginFormProps) {
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">
-          O acesso administrativo nao possui cadastro externo.
+          O acesso administrativo e liberado apenas pela equipe interna.
         </p>
       )}
     </form>

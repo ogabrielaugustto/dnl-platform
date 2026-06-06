@@ -3,9 +3,9 @@ import { PagePlaceholder } from "@/components/app/page-placeholder";
 export default function AdminAuditPage() {
   return (
     <PagePlaceholder
-      eyebrow="Admin"
-      title="Admin Audit"
-      description="Base inicial para trilha de auditoria e rastreabilidade operacional."
+      eyebrow="Administracao"
+      title="Auditoria"
+      description="Consulte a trilha de auditoria e a rastreabilidade das acoes internas."
     />
   );
 }

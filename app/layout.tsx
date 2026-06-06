@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Outfit, Figtree } from "next/font/google";
 import "./globals.css";
+import { APP_DESCRIPTION, APP_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,12 +24,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  applicationName: APP_NAME,
   title: {
-    default: "DNL Platform",
-    template: "%s | DNL Platform",
+    default: APP_NAME,
+    template: `%s | ${APP_NAME}`,
   },
-  description:
-    "Direito Na Lente: landing page, auth, client panel, and admin panel in one Next.js app.",
+  description: APP_DESCRIPTION,
+  openGraph: {
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    siteName: APP_NAME,
+  },
 };
 
 export default function RootLayout({

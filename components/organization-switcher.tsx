@@ -37,6 +37,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { APP_NAME } from "@/lib/brand";
 
 type OrganizationItem = {
   organizationId: string;
@@ -84,7 +85,7 @@ export function OrganizationSwitcher({
                     {currentOrganizationName}
                   </span>
                   <span className="truncate text-xs text-muted-foreground">
-                    Trocar organizacao
+                    {APP_NAME}
                   </span>
                 </div>
                 <ChevronsUpDownIcon className="ml-auto size-4" />
@@ -136,7 +137,7 @@ export function OrganizationSwitcher({
         <DrawerHeader>
           <DrawerTitle>Nova organizacao</DrawerTitle>
           <DrawerDescription>
-            Crie uma nova organizacao e alterne automaticamente para ela.
+            Crie um novo espaco para organizar imagens, acessos e ocorrencias.
           </DrawerDescription>
         </DrawerHeader>
         <form action={formAction} className="flex flex-1 flex-col gap-4 px-4 pb-4">
@@ -148,7 +149,7 @@ export function OrganizationSwitcher({
                 className="bg-background"
                 id="organization-name"
                 name="name"
-                placeholder="Ex.: Studio LTDA"
+                placeholder="Ex.: Studio Silva"
                 required
                 type="text"
               />

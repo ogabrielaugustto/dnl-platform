@@ -14,16 +14,16 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requirePanelAccess } from "@/lib/auth";
 
 const adminNavigation = [
-  { title: "Overview", url: "/admin", icon: <GaugeIcon /> },
-  { title: "Clients", url: "/admin/clients", icon: <BriefcaseBusinessIcon /> },
-  { title: "Assets", url: "/admin/assets", icon: <FolderKanbanIcon /> },
-  { title: "Detections", url: "/admin/detections", icon: <SearchCheckIcon /> },
-  { title: "Jobs", url: "/admin/jobs", icon: <Settings2Icon /> },
+  { title: "Visao geral", url: "/admin", icon: <GaugeIcon /> },
+  { title: "Clientes", url: "/admin/clients", icon: <BriefcaseBusinessIcon /> },
+  { title: "Galeria", url: "/admin/assets", icon: <FolderKanbanIcon /> },
+  { title: "Ocorrencias", url: "/admin/detections", icon: <SearchCheckIcon /> },
+  { title: "Processamentos", url: "/admin/jobs", icon: <Settings2Icon /> },
 ];
 
 const adminSecondaryNavigation = [
-  { title: "Reports", url: "/admin/reports", icon: <ReceiptTextIcon /> },
-  { title: "Audit", url: "/admin/audit", icon: <ShieldCheckIcon /> },
+  { title: "Relatorios", url: "/admin/reports", icon: <ReceiptTextIcon /> },
+  { title: "Auditoria", url: "/admin/audit", icon: <ShieldCheckIcon /> },
 ];
 
 export default async function AdminLayout({
@@ -46,6 +46,7 @@ export default async function AdminLayout({
         navMain={adminNavigation}
         navSecondary={adminSecondaryNavigation}
         user={{
+          avatar: context.avatarUrl ?? "",
           billingHref: "/admin/reports",
           email: context.email ?? "",
           name: context.fullName ?? context.email ?? "Administrador",

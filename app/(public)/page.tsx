@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { APP_NAME } from "@/lib/brand";
 import { PagePlaceholder } from "@/components/app/page-placeholder";
 
 export default function LandingPage() {
@@ -6,7 +7,7 @@ export default function LandingPage() {
     <main className="flex flex-1 items-center bg-background">
       <PagePlaceholder
         eyebrow="Landing Page"
-        title="Direito Na Lente"
+        title={APP_NAME}
         description="Base inicial da landing page, autenticacao, painel do cliente e painel administrativo dentro do mesmo app Next.js."
       >
         <div className="flex flex-wrap gap-3">
