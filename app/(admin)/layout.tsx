@@ -3,6 +3,7 @@ import {
   BriefcaseBusinessIcon,
   FolderKanbanIcon,
   GaugeIcon,
+  Globe2Icon,
   ReceiptTextIcon,
   SearchCheckIcon,
   Settings2Icon,
@@ -18,6 +19,7 @@ const adminNavigation = [
   { title: "Clientes", url: "/admin/clients", icon: <BriefcaseBusinessIcon /> },
   { title: "Galeria", url: "/admin/assets", icon: <FolderKanbanIcon /> },
   { title: "Ocorrencias", url: "/admin/detections", icon: <SearchCheckIcon /> },
+  { title: "Fontes", url: "/admin/sources", icon: <Globe2Icon /> },
   { title: "Processamentos", url: "/admin/jobs", icon: <Settings2Icon /> },
 ];
 

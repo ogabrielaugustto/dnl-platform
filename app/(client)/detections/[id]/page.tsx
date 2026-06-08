@@ -99,7 +99,10 @@ export default async function DetectionDetailsPage({
     detection.evidences.find((item) => item.matchedImageUrl || item.screenshotUrl) ??
     detection.latestEvidence;
   const matchedImageUrl =
-    comparisonEvidence?.matchedImageUrl ?? detection.matchedImageUrl ?? null;
+    comparisonEvidence?.matchedImageUrl ??
+    comparisonEvidence?.screenshotUrl ??
+    detection.matchedImageUrl ??
+    null;
 
   return (
     <section className="flex w-full flex-1 flex-col gap-5 px-4 py-6 md:px-8">

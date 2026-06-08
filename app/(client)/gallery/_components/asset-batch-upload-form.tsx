@@ -172,7 +172,7 @@ export function AssetBatchUploadForm({
             <select
               id="licenseType"
               name="licenseType"
-              defaultValue="institutional"
+              defaultValue="exclusive"
               className="h-11 w-full rounded-xl border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
             >
               {assetLicenseOptions.map((option) => (

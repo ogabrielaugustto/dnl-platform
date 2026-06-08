@@ -4,6 +4,11 @@ const remoteBaseUrl = process.env.R2_PUBLIC_BASE_URL;
 const remoteUrl = remoteBaseUrl ? new URL(remoteBaseUrl) : null;
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "300mb",
+    },
+  },
   images: {
     remotePatterns: remoteUrl
       ? [
