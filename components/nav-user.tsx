@@ -35,6 +35,7 @@ import {
   LogOutIcon,
   MoonStarIcon,
 } from "lucide-react"
+import { Button } from "./ui/button"
 
 export function NavUser({
   user,
@@ -142,10 +143,10 @@ export function NavUser({
             <DropdownMenuSeparator />
             <form action={signOutAction}>
               <DropdownMenuItem asChild>
-                <button type="submit">
+                <Button variant="ghost" type="submit" className="w-full flex justify-start">
                   <LogOutIcon />
                   Sair
-                </button>
+                </Button>
               </DropdownMenuItem>
             </form>
           </DropdownMenuContent>

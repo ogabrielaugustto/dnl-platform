@@ -68,6 +68,10 @@ function ImagePanel(props: {
   );
 }
 
+function isCaseStatus(status: string) {
+  return status === "unauthorized";
+}
+
 function SiteInfoList(props: { label: string; values: string[]; emptyLabel: string }) {
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-3">
@@ -98,6 +102,8 @@ export function DetectionDetailsTabs({
   incident,
   currentPage,
 }: DetectionDetailsTabsProps) {
+  const isCase = isCaseStatus(incident.incidentStatus);
+
   return (
     <Tabs defaultValue="analysis" className="w-full">
       <TabsList
@@ -130,10 +136,10 @@ export function DetectionDetailsTabs({
           </div>
           <div className="rounded-lg border border-border bg-muted/20 p-3">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Caso
+              {isCase ? "Caso" : "Grupo de ocorrencias"}
             </p>
             <p className="mt-2 text-sm font-medium text-foreground">
-              {formatPublicId(incident.casePublicId)}
+              {formatPublicId(isCase ? incident.casePublicId : incident.publicId)}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-muted/20 p-3">

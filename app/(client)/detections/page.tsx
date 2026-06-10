@@ -1,7 +1,12 @@
 import Link from "next/link";
+import { LiveWorkflowRefresh } from "@/app/(client)/_components/live-workflow-refresh";
 import { RefreshDataButton } from "@/components/app/refresh-data-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  listOrganizationAssets,
+  requireActiveOrganization,
+} from "@/lib/dal/assets";
 import {
   formatDetectionStatus,
   formatEvidenceCoverage,
@@ -63,13 +68,14 @@ function formatDomain(value: string) {
 
 export default async function DetectionsPage({ searchParams }: DetectionsPageProps) {
   const params = await searchParams;
+  const { organizationId } = await requireActiveOrganization();
   const effectiveStatus =
     !params.status || params.status === "all"
       ? params.status === "all"
         ? null
         : "pending"
       : params.status;
-  const [allIncidents, incidents] = await Promise.all([
+  const [allIncidents, incidents, assets] = await Promise.all([
     listDetectionIncidents({
       assetId: params.asset ?? null,
     }),
@@ -77,12 +83,18 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
       assetId: params.asset ?? null,
       status: effectiveStatus,
     }),
+    listOrganizationAssets(),
   ]);
-  const activeAssetTitle =
+  const activeAssetLabel =
     params.asset && (incidents.length > 0 || allIncidents.length > 0)
-      ? (incidents[0]?.asset.title ?? allIncidents[0]?.asset.title ?? null)
+      ? `Imagem ${formatPublicId(incidents[0]?.asset.publicId ?? allIncidents[0]?.asset.publicId)}`
       : null;
   const pendingCount = allIncidents.filter((item) => item.incidentStatus === "pending").length;
+  const hasActiveWork = assets.some(
+    (asset) =>
+      asset.statusSummary.kind === "pending" ||
+      asset.statusSummary.kind === "processing",
+  );
 
   return (
     <section className="flex w-full flex-1 flex-col gap-5 px-4 py-6 md:px-8">
@@ -136,7 +148,7 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
             <p className="text-muted-foreground">
               Imagem:{" "}
               <span className="font-medium text-foreground">
-                {activeAssetTitle ?? "selecionada"}
+                {activeAssetLabel ?? "selecionada"}
               </span>
             </p>
             <Button asChild size="sm" variant="ghost">
@@ -147,6 +159,11 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
           </div>
         ) : null}
       </div>
+
+      <LiveWorkflowRefresh
+        organizationId={organizationId}
+        hasActiveWork={hasActiveWork}
+      />
 
       {incidents.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-card/60 p-8 text-center shadow-sm">
@@ -159,7 +176,8 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-          <div className="hidden grid-cols-[minmax(220px,1.4fr)_minmax(160px,1fr)_110px_130px_140px_110px] gap-3 border-b border-border bg-muted/30 px-4 py-3 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground xl:grid">
+          <div className="hidden grid-cols-[90px_minmax(220px,1.4fr)_minmax(160px,1fr)_110px_130px_140px_110px] gap-3 border-b border-border bg-muted/30 px-4 py-3 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground xl:grid">
+            <span>ID</span>
             <span>Obra</span>
             <span>Dominio</span>
             <span>Paginas</span>
@@ -172,8 +190,17 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
             {incidents.map((incident) => (
               <article
                 key={incident.key}
-                className="grid gap-3 px-4 py-4 xl:grid-cols-[minmax(220px,1.4fr)_minmax(160px,1fr)_110px_130px_140px_110px] xl:items-center"
+                className="grid gap-3 px-4 py-4 xl:grid-cols-[90px_minmax(220px,1.4fr)_minmax(160px,1fr)_110px_130px_140px_110px] xl:items-center"
               >
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground xl:hidden">
+                    ID
+                  </p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {formatPublicId(incident.publicId)}
+                  </p>
+                </div>
+
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="size-14 shrink-0 overflow-hidden rounded-md border border-border bg-muted/30">
                     {incident.asset.primaryImageUrl ? (
@@ -186,15 +213,11 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
                     ) : null}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                      Caso {formatPublicId(incident.casePublicId)} / Imagem{" "}
-                      {formatPublicId(incident.asset.publicId)}
-                    </p>
                     <Link
                       href="/gallery"
                       className="mt-1 block truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
                     >
-                      {incident.asset.title}
+                      Imagem {formatPublicId(incident.asset.publicId)}
                     </Link>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
                       <Badge variant={getDetectionStatusVariant(incident.incidentStatus)}>

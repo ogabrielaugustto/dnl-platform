@@ -139,6 +139,7 @@ export type DetectionIncidentPageGroup = {
 
 export type DetectionIncidentListItem = {
   key: string;
+  publicId: number;
   casePublicId: number;
   asset: DetectionPlacementListItem["asset"];
   domain: string;
@@ -683,6 +684,7 @@ function buildDetectionIncidents(
 
       return {
         key,
+        publicId: representativePlacement.publicId,
         casePublicId: representativePlacement.casePublicId,
         asset: representativePlacement.asset,
         domain: representativePlacement.domain ?? representativePlacement.normalizedDomain,

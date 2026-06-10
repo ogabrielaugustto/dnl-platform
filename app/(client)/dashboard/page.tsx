@@ -61,6 +61,35 @@ function getFirstName(value: string | null | undefined) {
   return trimmed.split(/\s+/)[0] ?? "cliente";
 }
 
+function getGreeting() {
+  const hour = Number(
+    new Intl.DateTimeFormat("pt-BR", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: "America/Sao_Paulo",
+    }).format(new Date()),
+  );
+
+  if (hour < 12) {
+    return {
+      label: "Bom dia",
+      icon: "☀️",
+    };
+  }
+
+  if (hour < 18) {
+    return {
+      label: "Boa tarde",
+      icon: "🌤️",
+    };
+  }
+
+  return {
+    label: "Boa noite",
+    icon: "🌙",
+  };
+}
+
 function formatDate(value: string | null) {
   if (!value) {
     return "Nao informado";
@@ -217,7 +246,7 @@ function SummaryCard({
 }
 
 export default async function DashboardPage() {
-  const { context, membership } = await requireActiveOrganization();
+  const { context } = await requireActiveOrganization();
   const [assets, incidents, pendingIncidents, cases] = await Promise.all([
     listOrganizationAssets(),
     listDetectionIncidents(),
@@ -225,6 +254,7 @@ export default async function DashboardPage() {
     listDetectionIncidents({ status: "unauthorized" }),
   ]);
   const firstName = getFirstName(context.fullName ?? context.email);
+  const greeting = getGreeting();
   const monitoredAssetsCount = assets.filter(
     (asset) => asset.monitoringRule?.isActive,
   ).length;
@@ -241,29 +271,30 @@ export default async function DashboardPage() {
 
   return (
     <section className="flex w-full flex-1 flex-col gap-6 px-4 py-6 md:px-8">
-      <header className="grid gap-5 rounded-xl border border-border bg-card p-6 shadow-sm ring-1 ring-foreground/5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:p-7">
+      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-4">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">
-              {membership.organizationName ?? "Minha conta"}
-            </Badge>
-          </div>
-          <h1 className="mt-4 font-heading text-2xl font-semibold tracking-tight md:text-3xl">
-            Ola, {firstName}.
+          <h1 className="font-heading text-2xl font-semibold tracking-tight md:text-3xl">
+            <span>{greeting.label}, {firstName}</span>
+            <span className="ml-2 align-middle text-2xl" aria-hidden="true">
+              {greeting.icon}
+            </span>
           </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Acompanhe suas imagens, varreduras e ocorrencias pendentes.
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2 lg:justify-end">
-          <RefreshDataButton />
-          <Button asChild>
+        <div className="flex flex-wrap gap-2">
+          <RefreshDataButton size="sm" />
+          <Button asChild size="sm" className="shadow-sm">
             <Link href="/gallery/new">
-              <UploadCloudIcon />
+              <UploadCloudIcon className="size-4" />
               Enviar imagem
             </Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild size="sm" variant="outline">
             <Link href="/detections">
               Revisar ocorrencias
-              <ArrowRightIcon />
+              <ArrowRightIcon className="size-4" />
             </Link>
           </Button>
         </div>
@@ -338,7 +369,7 @@ export default async function DashboardPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    Caso {formatPublicId(nextIncident.casePublicId)} / Imagem{" "}
+                    Ocorrencia {formatPublicId(nextIncident.publicId)} / Imagem{" "}
                     {formatPublicId(nextIncident.asset.publicId)}
                   </p>
                   <h2 className="mt-1 truncate font-heading text-xl font-semibold">

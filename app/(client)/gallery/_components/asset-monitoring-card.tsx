@@ -6,6 +6,7 @@ import { AssetMonitoringToggle } from "@/app/(client)/gallery/_components/asset-
 import { RenameAssetTitleForm } from "@/app/(client)/gallery/_components/rename-asset-title-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { AssetListItem, MonitoringRuleFrequency } from "@/lib/dal/assets";
 import { formatMonitoringFrequency } from "@/lib/monitoring-frequency";
 import { formatPublicId } from "@/lib/public-id";
@@ -59,6 +60,22 @@ function getMonitoringLabel(asset: AssetListItem) {
   return translateFrequency(asset.monitoringRule.frequency);
 }
 
+function isProcessingAsset(asset: AssetListItem) {
+  return (
+    asset.statusSummary.kind === "pending" ||
+    asset.statusSummary.kind === "processing"
+  );
+}
+
+function ProcessingOverlay({ label }: { label: string }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 flex items-center gap-2 rounded-md border border-white/15 bg-background/90 px-2.5 py-2 text-xs font-medium text-foreground shadow-sm backdrop-blur">
+      <Spinner className="size-3.5 text-primary" />
+      <span className="truncate">{label}</span>
+    </div>
+  );
+}
+
 export function AssetMonitoringCard({
   asset,
   prioritizeImage = false,
@@ -68,6 +85,8 @@ export function AssetMonitoringCard({
   prioritizeImage?: boolean;
   viewMode?: AssetViewMode;
 }) {
+  const isProcessing = isProcessingAsset(asset);
+
   if (viewMode === "rows") {
     return (
       <article className="rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md">
@@ -99,6 +118,7 @@ export function AssetMonitoringCard({
                 Sem preview
               </div>
             )}
+            {isProcessing ? <ProcessingOverlay label={asset.statusSummary.label} /> : null}
           </div>
 
           <div className="min-w-0 flex-1">
@@ -134,7 +154,10 @@ export function AssetMonitoringCard({
                 </div>
                 <div>
                   <p className="font-medium text-foreground">Ultima busca</p>
-                  <p>{translateJobStatus(asset.latestScanJob?.status)}</p>
+                  <p className="inline-flex items-center gap-1.5">
+                    {isProcessing ? <Spinner className="size-3 text-primary" /> : null}
+                    {translateJobStatus(asset.latestScanJob?.status)}
+                  </p>
                 </div>
                 <div>
                   <p className="font-medium text-foreground">Pasta</p>
@@ -186,6 +209,7 @@ export function AssetMonitoringCard({
             Preview indisponivel
           </div>
         )}
+        {isProcessing ? <ProcessingOverlay label={asset.statusSummary.label} /> : null}
       </div>
 
       <div className="space-y-2.5 px-1 pb-1 pt-2.5">

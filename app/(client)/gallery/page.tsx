@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { LiveWorkflowRefresh } from "@/app/(client)/_components/live-workflow-refresh";
 import { AssetFolderFilter } from "@/app/(client)/gallery/_components/asset-folder-filter";
 import { AssetMonitoringCard } from "@/app/(client)/gallery/_components/asset-monitoring-card";
 import { RenameFolderForm } from "@/app/(client)/gallery/_components/rename-folder-form";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   listOrganizationAssetFolders,
   listOrganizationAssets,
+  requireActiveOrganization,
 } from "@/lib/dal/assets";
 
 type AssetsPageProps = {
@@ -42,6 +44,7 @@ function buildFlashMessage(params: Awaited<AssetsPageProps["searchParams"]>) {
 
 export default async function GalleryPage({ searchParams }: AssetsPageProps) {
   const params = await searchParams;
+  const { organizationId } = await requireActiveOrganization();
   const activeFolderId =
     params.folder && params.folder !== "unassigned" ? params.folder : null;
   const unassignedSelected = params.folder === "unassigned";
@@ -57,6 +60,11 @@ export default async function GalleryPage({ searchParams }: AssetsPageProps) {
   const flashMessage = buildFlashMessage(params);
   const totalAssetsCount = allAssets.length;
   const unassignedCount = allAssets.filter((asset) => !asset.folder).length;
+  const hasActiveWork = allAssets.some(
+    (asset) =>
+      asset.statusSummary.kind === "pending" ||
+      asset.statusSummary.kind === "processing",
+  );
   const activeFolder =
     folders.find((folder) => folder.id === activeFolderId) ?? null;
 
@@ -96,6 +104,11 @@ export default async function GalleryPage({ searchParams }: AssetsPageProps) {
           </div>
         </div>
       ) : null}
+
+      <LiveWorkflowRefresh
+        organizationId={organizationId}
+        hasActiveWork={hasActiveWork}
+      />
 
       <AssetFolderFilter
         folders={folders}

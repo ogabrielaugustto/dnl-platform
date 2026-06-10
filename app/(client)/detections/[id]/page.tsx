@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeftIcon } from "lucide-react";
 import { updateDetectionStatusAction } from "@/app/actions/detections";
 import { DetectionDetailsTabs } from "./_components/detection-details-tabs";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,10 @@ function formatDomain(value: string) {
   }
 
   return value;
+}
+
+function isCaseStatus(status: string) {
+  return status === "unauthorized";
 }
 
 function DecisionButton({
@@ -104,29 +109,26 @@ export default async function DetectionDetailsPage({
     comparisonEvidence?.screenshotUrl ??
     detection.matchedImageUrl ??
     null;
+  const isCase = isCaseStatus(detection.incident.incidentStatus);
 
   return (
     <section className="flex w-full flex-1 flex-col gap-5 px-4 py-6 md:px-8">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/detections"
-              className="text-sm text-muted-foreground underline underline-offset-4"
-            >
-              Ocorrencias
+          <Button asChild size="sm" variant="ghost" className="-ml-2 mb-2">
+            <Link href="/detections">
+              <ArrowLeftIcon className="size-4" />
+              Voltar
             </Link>
-            <span className="text-sm text-muted-foreground">/</span>
-            <span className="break-all text-sm font-medium text-foreground">
-              {formatDomain(detection.incident.domain)}
-            </span>
-          </div>
+          </Button>
           <h1 className="mt-2 font-heading text-2xl font-semibold tracking-tight md:text-3xl">
             Validar uso encontrado
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Caso {formatPublicId(detection.casePublicId)} / Ocorrencia{" "}
-            {formatPublicId(detection.publicId)} / Imagem{" "}
+            {isCase
+              ? `Caso ${formatPublicId(detection.casePublicId)} / `
+              : ""}
+            Ocorrencia {formatPublicId(detection.publicId)} / Imagem{" "}
             {formatPublicId(detection.asset.publicId)}
           </p>
         </div>
@@ -240,10 +242,12 @@ export default async function DetectionDetailsPage({
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.16em]">
-                  Caso / ocorrencia
+                  {isCase ? "Caso / ocorrencia" : "Ocorrencia"}
                 </p>
                 <p className="mt-1 text-foreground">
-                  {formatPublicId(detection.casePublicId)} /{" "}
+                  {isCase
+                    ? `${formatPublicId(detection.casePublicId)} / `
+                    : ""}
                   {formatPublicId(detection.publicId)}
                 </p>
               </div>
