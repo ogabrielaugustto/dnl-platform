@@ -7,6 +7,7 @@ import { assetLicenseOptions } from "@/lib/asset-license";
 import {
   buildManualScanDedupeKey,
   getDefaultNextRunAt,
+  getOrganizationMonitoringFrequency,
   requireWritableOrganization,
   type MonitoringRuleFrequency,
 } from "@/lib/dal/assets";
@@ -30,7 +31,6 @@ const batchUploadSchema = z.object({
   licenseType: z.enum(assetLicenseValues as [string, ...string[]], {
     error: "Selecione um tipo de licenca valido.",
   }),
-  frequency: z.enum(["hourly", "daily", "weekly", "monthly"]),
   existingFolderId: z.string().trim().optional(),
   newFolderName: z.string().trim().optional(),
   newFolderDescription: z.string().trim().optional(),
@@ -405,7 +405,6 @@ export async function createAssetBatchAction(
   const parsed = batchUploadSchema.safeParse({
     description: getOptionalFormValue(formData, "description"),
     licenseType: getOptionalFormValue(formData, "licenseType"),
-    frequency: getOptionalFormValue(formData, "frequency"),
     existingFolderId: getOptionalFormValue(formData, "existingFolderId"),
     newFolderName: getOptionalFormValue(formData, "newFolderName"),
     newFolderDescription: getOptionalFormValue(formData, "newFolderDescription"),
@@ -456,6 +455,7 @@ export async function createAssetBatchAction(
 
   try {
     const { organizationId, userId } = await requireWritableOrganization();
+    const frequency = await getOrganizationMonitoringFrequency(organizationId);
     const folderId = await ensureFolderId({
       organizationId,
       userId,
@@ -479,7 +479,7 @@ export async function createAssetBatchAction(
           file,
           description: parsed.data.description,
           licenseType: parsed.data.licenseType,
-          frequency: parsed.data.frequency,
+          frequency,
           folderId,
         });
 
@@ -802,39 +802,6 @@ export async function triggerAssetScanAction(formData: FormData) {
   );
 }
 
-export async function switchAssetMonitoringFrequencyAction(formData: FormData) {
-  const assetId = formData.get("assetId");
-  const frequency = formData.get("frequency");
-
-  if (typeof assetId !== "string" || assetId.length === 0) {
-    return;
-  }
-
-  if (
-    frequency !== "hourly" &&
-    frequency !== "daily" &&
-    frequency !== "weekly" &&
-    frequency !== "monthly"
-  ) {
-    return;
-  }
-
-  const { organizationId } = await requireWritableOrganization();
-  const supabase = await createClient();
-
-  await supabase
-    .from("monitoring_rules")
-    .update({
-      frequency: frequency as MonitoringRuleFrequency,
-      next_run_at: getDefaultNextRunAt(frequency as MonitoringRuleFrequency),
-    })
-    .eq("organization_id", organizationId)
-    .eq("asset_id", assetId)
-    .eq("is_active", true);
-
-  refresh();
-}
-
 export async function toggleAssetMonitoringAction(
   _: MonitoringToggleActionState,
   formData: FormData,
@@ -909,7 +876,7 @@ export async function toggleAssetMonitoringAction(
         };
       }
 
-      const frequency: MonitoringRuleFrequency = "daily";
+      const frequency = await getOrganizationMonitoringFrequency(organizationId);
       const { error: insertError } = await supabase.from("monitoring_rules").insert({
         organization_id: organizationId,
         asset_id: parsed.data.assetId,

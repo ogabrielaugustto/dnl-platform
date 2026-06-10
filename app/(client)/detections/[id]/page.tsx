@@ -10,6 +10,7 @@ import {
   getEvidenceCoverageVariant,
 } from "@/lib/detection-ui";
 import { getDetectionDetails } from "@/lib/dal/detections";
+import { formatPublicId } from "@/lib/public-id";
 
 type DetectionDetailsPageProps = {
   params: Promise<{
@@ -123,6 +124,11 @@ export default async function DetectionDetailsPage({
           <h1 className="mt-2 font-heading text-2xl font-semibold tracking-tight md:text-3xl">
             Validar uso encontrado
           </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Caso {formatPublicId(detection.casePublicId)} / Ocorrencia{" "}
+            {formatPublicId(detection.publicId)} / Imagem{" "}
+            {formatPublicId(detection.asset.publicId)}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={getDetectionStatusVariant(detection.incident.incidentStatus)}>
@@ -222,12 +228,24 @@ export default async function DetectionDetailsPage({
                 <p className="text-xs font-medium uppercase tracking-[0.16em]">
                   Imagem
                 </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatPublicId(detection.asset.publicId)}
+                </p>
                 <Link
                   href="/gallery"
                   className="mt-1 block text-foreground underline underline-offset-4"
                 >
                   {detection.asset.title}
                 </Link>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.16em]">
+                  Caso / ocorrencia
+                </p>
+                <p className="mt-1 text-foreground">
+                  {formatPublicId(detection.casePublicId)} /{" "}
+                  {formatPublicId(detection.publicId)}
+                </p>
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.16em]">

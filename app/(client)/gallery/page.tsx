@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { AssetFolderFilter } from "@/app/(client)/gallery/_components/asset-folder-filter";
 import { AssetMonitoringCard } from "@/app/(client)/gallery/_components/asset-monitoring-card";
 import { RenameFolderForm } from "@/app/(client)/gallery/_components/rename-folder-form";
+import { RefreshDataButton } from "@/components/app/refresh-data-button";
 import { Button } from "@/components/ui/button";
 import {
   listOrganizationAssetFolders,
@@ -77,12 +78,15 @@ export default async function GalleryPage({ searchParams }: AssetsPageProps) {
           </div>
         </div>
 
-        <Button asChild size="sm" className="shadow-sm">
-          <Link href="/gallery/new">
-            <Plus className="size-4" aria-hidden="true" />
-            Adicionar imagem
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <RefreshDataButton size="sm" />
+          <Button asChild size="sm" className="shadow-sm">
+            <Link href="/gallery/new">
+              <Plus className="size-4" aria-hidden="true" />
+              Adicionar imagem
+            </Link>
+          </Button>
+        </div>
       </header>
 
       {flashMessage ? (

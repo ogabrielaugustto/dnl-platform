@@ -165,7 +165,7 @@ export function AssetBatchUploadForm({
       <input type="hidden" name="newFolderName" value={folderName} />
       <input type="hidden" name="newFolderDescription" value="" />
 
-      <div className="grid gap-6 lg:grid-cols-3 lg:items-end">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-end">
         <Field>
           <FieldLabel htmlFor="licenseType">Tipo de licenca</FieldLabel>
           <FieldContent>
@@ -180,23 +180,6 @@ export function AssetBatchUploadForm({
                   {option.label}
                 </option>
               ))}
-            </select>
-          </FieldContent>
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="frequency">Frequencia</FieldLabel>
-          <FieldContent>
-            <select
-              id="frequency"
-              name="frequency"
-              defaultValue="daily"
-              className="h-11 w-full rounded-xl border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-            >
-              <option value="hourly">A cada hora</option>
-              <option value="daily">Diariamente</option>
-              <option value="weekly">Semanalmente</option>
-              <option value="monthly">Mensalmente</option>
             </select>
           </FieldContent>
         </Field>

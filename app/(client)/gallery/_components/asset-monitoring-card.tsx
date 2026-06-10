@@ -7,6 +7,8 @@ import { RenameAssetTitleForm } from "@/app/(client)/gallery/_components/rename-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { AssetListItem, MonitoringRuleFrequency } from "@/lib/dal/assets";
+import { formatMonitoringFrequency } from "@/lib/monitoring-frequency";
+import { formatPublicId } from "@/lib/public-id";
 
 function getStatusVariant(kind: AssetListItem["statusSummary"]["kind"]) {
   switch (kind) {
@@ -25,18 +27,7 @@ type AssetViewMode = "cards" | "rows";
 type LatestScanJobStatus = NonNullable<AssetListItem["latestScanJob"]>["status"];
 
 function translateFrequency(value: MonitoringRuleFrequency) {
-  switch (value) {
-    case "hourly":
-      return "A cada hora";
-    case "daily":
-      return "Diariamente";
-    case "weekly":
-      return "Semanalmente";
-    case "monthly":
-      return "Mensalmente";
-    default:
-      return "Sem agendamento";
-  }
+  return formatMonitoringFrequency(value);
 }
 
 function translateJobStatus(status: LatestScanJobStatus | undefined) {
@@ -115,6 +106,9 @@ export function AssetMonitoringCard({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                    Imagem {formatPublicId(asset.publicId)}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
                     {asset.folder?.name ?? "Sem pasta"}
                   </p>
                   <Badge
@@ -198,6 +192,9 @@ export function AssetMonitoringCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 pt-0.5">
             <p className="truncate text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Imagem {formatPublicId(asset.publicId)}
+            </p>
+            <p className="mt-1 truncate text-xs text-muted-foreground">
               {asset.folder?.name ?? "Sem pasta"}
             </p>
           </div>

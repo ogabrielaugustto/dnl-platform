@@ -7,6 +7,7 @@ import { createClient } from "@/lib/server";
 
 type AssetRow = {
   id: string;
+  public_id: number;
   organization_id: string;
   title: string;
   created_at: string;
@@ -21,6 +22,8 @@ type AssetFileRow = {
 
 type DetectionRow = {
   id: string;
+  public_id: number;
+  case_public_id: number;
   organization_id: string;
   asset_id: string;
   source_url: string;
@@ -81,8 +84,11 @@ export type DetectionEvidenceListItem = {
 
 export type DetectionPlacementListItem = {
   id: string;
+  publicId: number;
+  casePublicId: number;
   asset: {
     id: string;
+    publicId: number;
     title: string;
     primaryImageUrl: string | null;
     originalFileName: string | null;
@@ -105,6 +111,7 @@ export type DetectionPlacementListItem = {
 
 export type DetectionIncidentPlacementSummary = {
   id: string;
+  publicId: number;
   sourceUrl: string;
   pageTitle: string | null;
   status: string;
@@ -132,6 +139,7 @@ export type DetectionIncidentPageGroup = {
 
 export type DetectionIncidentListItem = {
   key: string;
+  casePublicId: number;
   asset: DetectionPlacementListItem["asset"];
   domain: string;
   normalizedDomain: string;
@@ -332,7 +340,7 @@ async function listAssetRowsById(organizationId: string, assetIds: string[]) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("assets")
-    .select("id, organization_id, title, created_at")
+    .select("id, public_id, organization_id, title, created_at")
     .eq("organization_id", organizationId)
     .in("id", assetIds);
 
@@ -404,8 +412,11 @@ function mapDetection(
 ): DetectionPlacementListItem {
   return {
     id: detection.id,
+    publicId: detection.public_id,
+    casePublicId: detection.case_public_id,
     asset: {
       id: detection.asset_id,
+      publicId: asset?.public_id ?? 0,
       title: asset?.title ?? "Imagem monitorada",
       primaryImageUrl: primaryFile?.storage_key
         ? buildAssetPublicUrl(primaryFile.storage_key)
@@ -440,7 +451,7 @@ async function listDetectionRows(
   let query = supabase
     .from("detections")
     .select(
-      "id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
+      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
     )
     .eq("organization_id", organizationId)
     .is("archived_at", null)
@@ -602,6 +613,7 @@ function buildIncidentPageGroups(
       const placementSummaries: DetectionIncidentPlacementSummary[] = sortedPlacements.map(
         (placement) => ({
           id: placement.id,
+          publicId: placement.publicId,
           sourceUrl: placement.sourceUrl,
           pageTitle: placement.pageTitle,
           status: placement.status,
@@ -671,6 +683,7 @@ function buildDetectionIncidents(
 
       return {
         key,
+        casePublicId: representativePlacement.casePublicId,
         asset: representativePlacement.asset,
         domain: representativePlacement.domain ?? representativePlacement.normalizedDomain,
         normalizedDomain: representativePlacement.normalizedDomain,
@@ -736,7 +749,7 @@ export async function getDetectionDetails(detectionId: string): Promise<Detectio
   const { data, error } = await supabase
     .from("detections")
     .select(
-      "id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
+      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
     )
     .eq("organization_id", organizationId)
     .eq("id", detectionId)
@@ -755,7 +768,7 @@ export async function getDetectionDetails(detectionId: string): Promise<Detectio
   const siblingRowsPromise = supabase
     .from("detections")
     .select(
-      "id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
+      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
     )
     .eq("organization_id", organizationId)
     .eq("asset_id", detection.asset_id)

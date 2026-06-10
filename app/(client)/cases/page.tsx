@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RefreshDataButton } from "@/components/app/refresh-data-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -6,6 +7,7 @@ import {
   getEvidenceCoverageVariant,
 } from "@/lib/detection-ui";
 import { listDetectionIncidents } from "@/lib/dal/detections";
+import { formatPublicId } from "@/lib/public-id";
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -43,9 +45,12 @@ export default async function CasesPage() {
             {cases.length} grupo(s) marcados para acompanhamento.
           </p>
         </div>
-        <Button asChild size="sm" variant="outline">
-          <Link href="/detections">Revisar ocorrencias</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <RefreshDataButton size="sm" />
+          <Button asChild size="sm" variant="outline">
+            <Link href="/detections">Revisar ocorrencias</Link>
+          </Button>
+        </div>
       </header>
 
       {cases.length === 0 ? (
@@ -77,6 +82,10 @@ export default async function CasesPage() {
                     ) : null}
                   </div>
                   <div className="min-w-0">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      Caso {formatPublicId(item.casePublicId)} / Imagem{" "}
+                      {formatPublicId(item.asset.publicId)}
+                    </p>
                     <p className="text-sm font-medium text-foreground">
                       {formatDomain(item.domain)}
                     </p>

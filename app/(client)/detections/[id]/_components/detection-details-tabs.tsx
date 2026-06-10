@@ -18,6 +18,7 @@ import {
   getEvidenceCoverageVariant,
   getEvidenceStatusVariant,
 } from "@/lib/detection-ui";
+import { formatPublicId } from "@/lib/public-id";
 
 type DetectionDetailsTabsProps = {
   detectionId: string;
@@ -129,10 +130,10 @@ export function DetectionDetailsTabs({
           </div>
           <div className="rounded-lg border border-border bg-muted/20 p-3">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Grupo
+              Caso
             </p>
             <p className="mt-2 text-sm font-medium text-foreground">
-              {incident.pagesCount} pagina(s), {incident.placementsCount} registro(s)
+              {formatPublicId(incident.casePublicId)}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-muted/20 p-3">
@@ -209,6 +210,9 @@ export function DetectionDetailsTabs({
                     className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/25 px-3 py-2"
                   >
                     <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">
+                        Ocorrencia {formatPublicId(placement.publicId)}
+                      </Badge>
                       <Badge variant={getDetectionStatusVariant(placement.status)}>
                         {formatDetectionStatus(placement.status)}
                       </Badge>

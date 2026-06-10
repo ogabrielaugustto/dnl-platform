@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RefreshDataButton } from "@/components/app/refresh-data-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +9,7 @@ import {
   getEvidenceCoverageVariant,
 } from "@/lib/detection-ui";
 import { listDetectionIncidents } from "@/lib/dal/detections";
+import { formatPublicId } from "@/lib/public-id";
 
 type DetectionsPageProps = {
   searchParams: Promise<{
@@ -96,9 +98,12 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
             {pendingCount} grupo(s) aguardando decisao humana.
           </p>
         </div>
-        <Button asChild size="sm" variant="outline">
-          <Link href="/gallery">Galeria</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <RefreshDataButton size="sm" />
+          <Button asChild size="sm" variant="outline">
+            <Link href="/gallery">Galeria</Link>
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-3 py-3 shadow-sm">
@@ -181,9 +186,13 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
                     ) : null}
                   </div>
                   <div className="min-w-0">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      Caso {formatPublicId(incident.casePublicId)} / Imagem{" "}
+                      {formatPublicId(incident.asset.publicId)}
+                    </p>
                     <Link
                       href="/gallery"
-                      className="block truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                      className="mt-1 block truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
                     >
                       {incident.asset.title}
                     </Link>

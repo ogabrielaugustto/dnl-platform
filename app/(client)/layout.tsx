@@ -1,9 +1,9 @@
 import type { CSSProperties } from "react";
 import {
-  BellIcon,
   BriefcaseIcon,
   FolderKanbanIcon,
   GaugeIcon,
+  InfoIcon,
   SearchCheckIcon,
   Settings2Icon,
 } from "lucide-react";
@@ -20,7 +20,7 @@ const clientNavigation = [
 ];
 
 const clientSecondaryNavigation = [
-  { title: "Relatorios", url: "/reports", icon: <BellIcon /> },
+  { title: "Como funciona", url: "#how-it-works", icon: <InfoIcon /> },
   { title: "Configuracoes", url: "/settings", icon: <Settings2Icon /> },
 ];
 

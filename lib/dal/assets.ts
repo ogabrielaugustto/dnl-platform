@@ -16,6 +16,7 @@ export type AssetSummaryStatus =
 
 type AssetRow = {
   id: string;
+  public_id: number;
   organization_id: string;
   folder_id: string | null;
   title: string;
@@ -84,6 +85,7 @@ type ScanRunRow = {
 
 type DetectionRow = {
   id: string;
+  public_id: number;
   asset_id: string;
   status: string;
   source_url: string;
@@ -102,6 +104,7 @@ export type AssetFolderListItem = {
 
 export type AssetListItem = {
   id: string;
+  publicId: number;
   folder: {
     id: string;
     name: string;
@@ -170,6 +173,7 @@ export type AssetDetails = AssetListItem & {
   }>;
   detections: Array<{
     id: string;
+    publicId: number;
     sourceUrl: string;
     domain: string | null;
     status: string;
@@ -254,6 +258,33 @@ export function getDefaultNextRunAt(frequency: MonitoringRuleFrequency) {
   }
 
   return base.toISOString();
+}
+
+export async function getOrganizationMonitoringFrequency(
+  organizationId: string,
+): Promise<MonitoringRuleFrequency> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("organization_subscriptions")
+    .select("scan_frequency_cap_snapshot, subscription_plans(scan_frequency_cap)")
+    .eq("organization_id", organizationId)
+    .in("status", ["trialing", "active", "past_due", "paused"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{
+      scan_frequency_cap_snapshot: MonitoringRuleFrequency | null;
+      subscription_plans: { scan_frequency_cap: MonitoringRuleFrequency | null } | null;
+    }>();
+
+  if (error) {
+    throw new Error("Nao foi possivel carregar a frequencia de monitoramento da organizacao.");
+  }
+
+  return (
+    data?.scan_frequency_cap_snapshot ??
+    data?.subscription_plans?.scan_frequency_cap ??
+    "daily"
+  );
 }
 
 export function summarizeAssetStatus(params: {
@@ -382,7 +413,7 @@ export async function listOrganizationAssets(options?: {
   const supabase = await createClient();
   let queryWithFolders = supabase
     .from("assets")
-    .select("id, organization_id, folder_id, title, description, author, license_type, status, created_at, updated_at")
+    .select("id, public_id, organization_id, folder_id, title, description, author, license_type, status, created_at, updated_at")
     .eq("organization_id", organizationId)
     .is("archived_at", null)
     .order("created_at", { ascending: false });
@@ -402,7 +433,7 @@ export async function listOrganizationAssets(options?: {
 
     const fallback = await supabase
       .from("assets")
-      .select("id, organization_id, title, description, author, license_type, status, created_at, updated_at")
+      .select("id, public_id, organization_id, title, description, author, license_type, status, created_at, updated_at")
       .eq("organization_id", organizationId)
       .is("archived_at", null)
       .order("created_at", { ascending: false });
@@ -451,7 +482,7 @@ export async function getAssetDetails(assetId: string): Promise<AssetDetails> {
 
   const { data: detections, error: detectionsError } = await supabase
     .from("detections")
-    .select("id, asset_id, status, source_url, domain, created_at, last_seen_at")
+    .select("id, public_id, asset_id, status, source_url, domain, created_at, last_seen_at")
     .eq("organization_id", organizationId)
     .eq("asset_id", assetId)
     .order("last_seen_at", { ascending: false })
@@ -488,6 +519,7 @@ export async function getAssetDetails(assetId: string): Promise<AssetDetails> {
     }),
     detections: ((detections ?? []) as DetectionRow[]).map((detection) => ({
       id: detection.id,
+      publicId: detection.public_id,
       sourceUrl: detection.source_url,
       domain: detection.domain,
       status: detection.status,
@@ -500,7 +532,7 @@ async function getSingleAssetRows(organizationId: string, assetId: string) {
   const supabase = await createClient();
   let { data, error } = await supabase
     .from("assets")
-    .select("id, organization_id, folder_id, title, description, author, license_type, status, created_at, updated_at")
+    .select("id, public_id, organization_id, folder_id, title, description, author, license_type, status, created_at, updated_at")
     .eq("organization_id", organizationId)
     .eq("id", assetId)
     .is("archived_at", null)
@@ -509,7 +541,7 @@ async function getSingleAssetRows(organizationId: string, assetId: string) {
   if (error && isMissingFolderSchemaError(error)) {
     const fallback = await supabase
       .from("assets")
-      .select("id, organization_id, title, description, author, license_type, status, created_at, updated_at")
+      .select("id, public_id, organization_id, title, description, author, license_type, status, created_at, updated_at")
       .eq("organization_id", organizationId)
       .eq("id", assetId)
       .is("archived_at", null)
@@ -592,7 +624,7 @@ async function hydrateAssets(
         .order("scheduled_at", { ascending: false }),
       supabase
         .from("detections")
-        .select("id, asset_id, status, source_url, domain, created_at, last_seen_at")
+        .select("id, public_id, asset_id, status, source_url, domain, created_at, last_seen_at")
         .eq("organization_id", organizationId)
         .in("asset_id", assetIds),
       folderIds.length > 0
@@ -731,6 +763,7 @@ function buildHydratedAssets(
 
     return {
       id: asset.id,
+      publicId: asset.public_id,
       folder: folder
         ? {
             id: folder.id,

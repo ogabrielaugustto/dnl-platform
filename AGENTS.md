@@ -98,6 +98,14 @@ The UI must always reinforce that:
 - Human validation is mandatory.
 - Evidence is operational support, not legal certainty.
 
+Client/admin journey boundary:
+
+- The client panel is not a self-running legal SaaS. The client uploads images, starts/uses monitoring, reviews found occurrences, and decides whether each occurrence is authorized, ignored, or an unauthorized use.
+- When the client marks an occurrence as unauthorized, it becomes a case for DNL follow-up.
+- The admin panel is where DNL employees continue the journey: reviewing the case, preparing legal/notification templates, deciding the operational path, and managing the manual legal follow-up.
+- Do not design client screens as if the customer should handle the full legal process alone. Client UX should stop at upload, monitoring visibility, occurrence review, and case handoff to DNL.
+- Do not design admin screens as generic SaaS administration only. Admin UX represents the DNL team's internal legal/operational workflow after the client validation step.
+
 ## 4. Architecture Decision
 
 Use this rule when in doubt:
