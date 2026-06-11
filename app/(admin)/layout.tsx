@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import {
+  BriefcaseIcon,
   BriefcaseBusinessIcon,
   FolderKanbanIcon,
   GaugeIcon,
@@ -12,11 +13,13 @@ import {
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { APP_NAME } from "@/lib/brand";
 import { requirePanelAccess } from "@/lib/auth";
 
 const adminNavigation = [
   { title: "Visao geral", url: "/admin", icon: <GaugeIcon /> },
   { title: "Clientes", url: "/admin/clients", icon: <BriefcaseBusinessIcon /> },
+  { title: "Casos", url: "/admin/cases", icon: <BriefcaseIcon /> },
   { title: "Galeria", url: "/admin/assets", icon: <FolderKanbanIcon /> },
   { title: "Ocorrencias", url: "/admin/detections", icon: <SearchCheckIcon /> },
   { title: "Fontes", url: "/admin/sources", icon: <Globe2Icon /> },
@@ -47,6 +50,10 @@ export default async function AdminLayout({
       <AppSidebar
         navMain={adminNavigation}
         navSecondary={adminSecondaryNavigation}
+        panel={{
+          title: "Painel admin",
+          subtitle: APP_NAME,
+        }}
         user={{
           avatar: context.avatarUrl ?? "",
           billingHref: "/admin/reports",

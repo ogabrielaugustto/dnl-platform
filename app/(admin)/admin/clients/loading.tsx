@@ -1,5 +1,5 @@
-import { RouteLoading } from "@/components/app/route-loading";
+import { AdminTableLoading } from "@/components/app/admin-route-loading";
 
 export default function AdminClientsLoading() {
-  return <RouteLoading area="Carregando clientes" />;
+  return <AdminTableLoading titleWidth="w-40" />;
 }

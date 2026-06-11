@@ -21,6 +21,18 @@ export function NavMain({
 }) {
   const pathname = usePathname()
 
+  function isItemActive(url: string) {
+    if (pathname === url) {
+      return true
+    }
+
+    if (url === "/" || url === "/admin") {
+      return false
+    }
+
+    return pathname.startsWith(`${url}/`)
+  }
+
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
@@ -29,11 +41,7 @@ export function NavMain({
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton
                 asChild
-                isActive={
-                  item.url === "/"
-                    ? pathname === item.url
-                    : pathname === item.url || pathname.startsWith(`${item.url}/`)
-                }
+                isActive={isItemActive(item.url)}
                 tooltip={item.title}
               >
                 <Link href={item.url}>
