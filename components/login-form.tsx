@@ -16,6 +16,7 @@ import { loginAction } from "@/app/actions/auth";
 type LoginFormProps = {
   panel: "client" | "admin";
   registerHref?: string;
+  forgotPasswordHref?: string;
 };
 
 const initialState: {
@@ -23,7 +24,11 @@ const initialState: {
   status?: "error" | "success";
 } = {};
 
-export function LoginForm({ panel, registerHref }: LoginFormProps) {
+export function LoginForm({
+  panel,
+  registerHref,
+  forgotPasswordHref,
+}: LoginFormProps) {
   const [state, formAction, pending] = useActionState(loginAction, initialState);
 
   return (
@@ -59,25 +64,33 @@ export function LoginForm({ panel, registerHref }: LoginFormProps) {
           <FieldDescription>
             Use o mesmo e-mail cadastrado para acessar sua conta.
           </FieldDescription>
+          {forgotPasswordHref ? (
+            <Link
+              className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+              href={forgotPasswordHref}
+            >
+              Esqueci minha senha
+            </Link>
+          ) : null}
         </Field>
 
         {state?.message ? <FieldError>{state.message}</FieldError> : null}
 
         <Button disabled={pending} size="lg" type="submit">
-          {pending ? "Entrando..." : panel === "admin" ? "Entrar na administracao" : "Entrar"}
+          {pending ? "Entrando..." : panel === "admin" ? "Entrar na administração" : "Entrar"}
         </Button>
       </FieldGroup>
 
       {registerHref ? (
         <p className="text-sm text-muted-foreground">
-          Ainda nao tem conta?{" "}
+          Ainda não tem conta?{" "}
           <Link className="font-medium text-foreground underline-offset-4 hover:underline" href={registerHref}>
             Criar cadastro
           </Link>
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">
-          O acesso administrativo e liberado apenas pela equipe interna.
+          O acesso administrativo é liberado apenas pela equipe interna.
         </p>
       )}
     </form>

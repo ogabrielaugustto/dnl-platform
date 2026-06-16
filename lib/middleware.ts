@@ -12,7 +12,19 @@ const protectedPrefixes = [
   '/admin',
 ]
 
-const publicPaths = new Set(['/admin/login', '/auth/login', '/auth/register', '/auth/forgot-password', '/'])
+const publicPaths = new Set([
+  '/admin/login',
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/confirm',
+  '/',
+  '/sobre',
+  '/contato',
+  '/termos-de-uso',
+  '/politica-de-privacidade',
+])
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({

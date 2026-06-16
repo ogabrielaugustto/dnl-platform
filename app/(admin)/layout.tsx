@@ -1,14 +1,14 @@
 import type { CSSProperties } from "react";
 import {
+  Building2Icon,
   BriefcaseIcon,
   BriefcaseBusinessIcon,
   FolderKanbanIcon,
   GaugeIcon,
-  Globe2Icon,
-  ReceiptTextIcon,
+  HistoryIcon,
   SearchCheckIcon,
   Settings2Icon,
-  ShieldCheckIcon,
+  UsersRoundIcon,
 } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
@@ -22,13 +22,13 @@ const adminNavigation = [
   { title: "Casos", url: "/admin/cases", icon: <BriefcaseIcon /> },
   { title: "Galeria", url: "/admin/assets", icon: <FolderKanbanIcon /> },
   { title: "Ocorrencias", url: "/admin/detections", icon: <SearchCheckIcon /> },
-  { title: "Fontes", url: "/admin/sources", icon: <Globe2Icon /> },
-  { title: "Processamentos", url: "/admin/jobs", icon: <Settings2Icon /> },
 ];
 
 const adminSecondaryNavigation = [
-  { title: "Relatorios", url: "/admin/reports", icon: <ReceiptTextIcon /> },
-  { title: "Auditoria", url: "/admin/audit", icon: <ShieldCheckIcon /> },
+  { title: "Atividades", url: "/admin/activities", icon: <HistoryIcon /> },
+  { title: "Organizacoes", url: "/admin/organizations", icon: <Building2Icon /> },
+  { title: "Usuarios", url: "/admin/users", icon: <UsersRoundIcon /> },
+  { title: "Varreduras", url: "/admin/scans", icon: <Settings2Icon /> },
 ];
 
 export default async function AdminLayout({
@@ -50,13 +50,14 @@ export default async function AdminLayout({
       <AppSidebar
         navMain={adminNavigation}
         navSecondary={adminSecondaryNavigation}
+        navSecondaryLabel="Administração"
         panel={{
           title: "Painel admin",
           subtitle: APP_NAME,
         }}
         user={{
           avatar: context.avatarUrl ?? "",
-          billingHref: "/admin/reports",
+          billingHref: "/admin/activities",
           email: context.email ?? "",
           name: context.fullName ?? context.email ?? "Administrador",
           profileHref: "/admin",

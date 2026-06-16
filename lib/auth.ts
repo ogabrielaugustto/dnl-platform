@@ -14,6 +14,7 @@ type ProfileRecord = {
   full_name: string | null;
   avatar_url: string | null;
   system_role: SystemRole;
+  is_active: boolean;
 };
 
 type MembershipRow = {
@@ -36,6 +37,7 @@ export type AuthContext = {
   fullName: string | null;
   avatarUrl: string | null;
   systemRole: SystemRole;
+  isActive: boolean;
   isAdmin: boolean;
   membership: OrganizationMembership | null;
   organizations: OrganizationMembership[];
@@ -56,7 +58,7 @@ async function readAuthContext(): Promise<AuthContext | null> {
   const [{ data: profile }, { data: memberships }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, email, full_name, avatar_url, system_role")
+      .select("id, email, full_name, avatar_url, system_role, is_active")
       .eq("id", user.id)
       .maybeSingle<ProfileRecord>(),
     supabase
@@ -94,6 +96,7 @@ async function readAuthContext(): Promise<AuthContext | null> {
         ? user.user_metadata.avatar_url
         : null),
     systemRole,
+    isActive: profile?.is_active ?? true,
     isAdmin: systemRole === "admin" || systemRole === "super_admin",
     membership,
     organizations,
@@ -103,6 +106,10 @@ async function readAuthContext(): Promise<AuthContext | null> {
 export const getAuthContext = cache(readAuthContext);
 
 export function getDefaultPanelPath(context: AuthContext): string {
+  if (!context.isActive) {
+    return "/auth/login";
+  }
+
   if (context.isAdmin) {
     return "/admin";
   }
@@ -121,6 +128,10 @@ export async function redirectAuthenticatedUser(panel: AppPanel) {
     return;
   }
 
+  if (!context.isActive) {
+    redirect("/auth/login?message=account-disabled");
+  }
+
   if (panel === "admin") {
     redirect(context.isAdmin ? "/admin" : "/dashboard");
   }
@@ -137,6 +148,10 @@ export async function requirePanelAccess(panel: AppPanel): Promise<AuthContext> 
 
   if (panel === "admin" && !context.isAdmin) {
     redirect(context.membership ? "/dashboard" : "/auth/login");
+  }
+
+  if (!context.isActive) {
+    redirect("/auth/login?message=account-disabled");
   }
 
   if (panel === "client" && !context.membership) {

@@ -41,6 +41,7 @@ type SidebarPanel = {
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   navMain?: SidebarLink[]
   navSecondary?: SidebarLink[]
+  navSecondaryLabel?: string
   panel?: SidebarPanel
   organization?: {
     currentOrganizationId: string
@@ -57,6 +58,7 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 export function AppSidebar({
   navMain = [],
   navSecondary = [],
+  navSecondaryLabel,
   panel,
   organization,
   user,
@@ -114,7 +116,11 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
-        <NavSecondary items={navSecondary} className="mt-auto" />
+        <NavSecondary
+          items={navSecondary}
+          label={navSecondaryLabel}
+          className="mt-auto"
+        />
       </SidebarContent>
       {user ? (
         <SidebarFooter>

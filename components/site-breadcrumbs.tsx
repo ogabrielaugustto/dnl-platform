@@ -19,11 +19,12 @@ const labels: Record<string, string> = {
   cases: "Casos",
   detections: "Ocorrencias",
   gallery: "Galeria",
-  jobs: "Processamentos",
+  jobs: "Varreduras",
   new: "Novo",
   organization: "Minha organizacao",
   profile: "Perfil",
   reports: "Relatorios",
+  scans: "Varreduras",
   settings: "Configuracoes",
 };
 

@@ -44,17 +44,17 @@ export function AuthShell({
         </div>
       </div>
 
-      <div className="flex flex-col justify-between p-6 md:p-10">
+      <div className="flex flex-col justify-between p-4 sm:p-6 md:p-10">
         <div className="flex items-center justify-between gap-4 lg:hidden">
-          <Link className="flex items-center gap-3 font-medium" href="/">
+          <Link className="flex min-w-0 items-center gap-3 font-medium" href="/">
             <span className="flex size-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
               <ScaleIcon className="size-5" />
             </span>
-            <span className="font-heading text-lg">{APP_NAME}</span>
+            <span className="truncate font-heading text-base sm:text-lg">{APP_NAME}</span>
           </Link>
         </div>
 
-        <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center py-10">
+        <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center py-8 sm:py-10">
           <div className="w-full space-y-8">
             <div className="space-y-2">
               <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">

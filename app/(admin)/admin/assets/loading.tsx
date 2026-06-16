@@ -1,5 +1,5 @@
-import { AdminPlaceholderLoading } from "@/components/app/admin-route-loading";
+import { AdminTableLoading } from "@/components/app/admin-route-loading";
 
 export default function AdminAssetsLoading() {
-  return <AdminPlaceholderLoading />;
+  return <AdminTableLoading titleWidth="w-40" />;
 }

@@ -1,5 +1,5 @@
-import { AdminPlaceholderLoading } from "@/components/app/admin-route-loading";
+import { AdminCasesRouteLoading } from "@/components/app/admin-route-loading";
 
 export default function AdminDetectionsLoading() {
-  return <AdminPlaceholderLoading />;
+  return <AdminCasesRouteLoading />;
 }

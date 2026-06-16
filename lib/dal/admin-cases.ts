@@ -85,7 +85,22 @@ type ProfileRow = {
 
 type DetectionMatchType = "full" | "partial" | "page" | "unknown";
 
-type AdminCasePlacement = {
+export type AdminCasePlacementEvidence = {
+  id: string;
+  scanRunId: string | null;
+  screenshotUrl: string | null;
+  matchedImageUrl: string | null;
+  matchedImageSourceUrl: string | null;
+  capturedAt: string | null;
+  captureStatus: string;
+  captureErrorMessage: string | null;
+  sourceUrlSnapshot: string | null;
+  createdAt: string;
+  finalUrl: string | null;
+  siteSnapshot: DetectionSiteSnapshot | null;
+};
+
+export type AdminCasePlacement = {
   id: string;
   publicId: number;
   casePublicId: number;
@@ -109,19 +124,56 @@ type AdminCasePlacement = {
   firstSeenAt: string;
   lastSeenAt: string;
   reviewedAt: string | null;
-  latestEvidence: {
-    captureStatus: string;
-    capturedAt: string | null;
-    finalUrl: string | null;
-    sourceUrlSnapshot: string | null;
-    matchedImageSourceUrl: string | null;
-    siteSnapshot: DetectionSiteSnapshot | null;
-  } | null;
+  latestEvidence: AdminCasePlacementEvidence | null;
+};
+
+export type AdminCasePlacementSummary = {
+  id: string;
+  publicId: number;
+  sourceUrl: string;
+  pageTitle: string | null;
+  status: string;
+  matchType: DetectionMatchType;
+  confidenceScore: number | null;
+  lastSeenAt: string;
+  reviewedAt: string | null;
+  matchedImageUrl: string | null;
+  latestEvidence: AdminCasePlacementEvidence | null;
+};
+
+export type AdminCasePageGroup = {
+  key: string;
+  sourceUrl: string;
+  canonicalSourceUrl: string;
+  pageTitle: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  placementsCount: number;
+  capturedEvidenceCount: number;
+  evidenceCoverage: DetectionEvidenceCoverage;
+  representativeDetectionId: string;
+  placements: AdminCasePlacementSummary[];
+};
+
+export type AdminCaseActionHistoryItem = {
+  id: string;
+  detectionId: string;
+  userId: string | null;
+  actorName: string | null;
+  actorEmail: string | null;
+  action: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  notes: string | null;
+  reason: string | null;
+  createdAt: string;
 };
 
 export type AdminCaseListItem = {
   key: string;
   publicId: number;
+  representativeDetectionId: string;
+  detectionPublicIds: number[];
   organization: {
     id: string;
     name: string;
@@ -129,10 +181,12 @@ export type AdminCaseListItem = {
   };
   asset: AdminCasePlacement["asset"];
   domain: string;
+  normalizedDomain: string;
   primaryPageTitle: string | null;
   sourceUrl: string;
   finalUrl: string | null;
   matchedImageUrl: string | null;
+  screenshotUrl: string | null;
   status: string;
   firstSeenAt: string;
   latestSeenAt: string;
@@ -150,13 +204,27 @@ export type AdminCaseListItem = {
   latestAction: {
     action: string;
     actorName: string | null;
+    actorEmail: string | null;
     createdAt: string;
     fromStatus: string | null;
     toStatus: string | null;
     notes: string | null;
     reason: string | null;
   } | null;
+  actionHistory: AdminCaseActionHistoryItem[];
+  pages: AdminCasePageGroup[];
+  placements: AdminCasePlacement[];
 };
+
+export type AdminCaseDetails = AdminCaseListItem;
+
+function buildEvidenceImageUrl(detectionId: string, evidenceId: string) {
+  return `/api/detections/${detectionId}/evidences/${evidenceId}/image`;
+}
+
+function buildEvidenceMatchedImageUrl(detectionId: string, evidenceId: string) {
+  return `/api/detections/${detectionId}/evidences/${evidenceId}/matched-image`;
+}
 
 function getMetadataValue(metadata: Record<string, unknown> | null | undefined, key: string) {
   if (!metadata || typeof metadata !== "object") {
@@ -348,6 +416,27 @@ function parseActionReason(metadata: Record<string, unknown> | null | undefined)
   return typeof reason === "string" && reason.trim().length > 0 ? reason : null;
 }
 
+function mapEvidence(evidence: DetectionEvidenceRow): AdminCasePlacementEvidence {
+  return {
+    id: evidence.id,
+    scanRunId: evidence.scan_run_id,
+    screenshotUrl: evidence.screenshot_storage_key
+      ? buildEvidenceImageUrl(evidence.detection_id, evidence.id)
+      : null,
+    matchedImageUrl: evidence.matched_image_storage_key
+      ? buildEvidenceMatchedImageUrl(evidence.detection_id, evidence.id)
+      : null,
+    matchedImageSourceUrl: evidence.matched_image_url_snapshot,
+    capturedAt: evidence.captured_at,
+    captureStatus: evidence.capture_status,
+    captureErrorMessage: evidence.capture_error_message,
+    sourceUrlSnapshot: evidence.source_url_snapshot,
+    createdAt: evidence.created_at,
+    finalUrl: getEvidenceFinalUrl(evidence.metadata),
+    siteSnapshot: getSiteSnapshot(evidence.metadata),
+  };
+}
+
 function mapDetection(
   detection: DetectionRow,
   organization: OrganizationRow | undefined,
@@ -355,8 +444,6 @@ function mapDetection(
   primaryFile: AssetFileRow | undefined,
   latestEvidence: DetectionEvidenceRow | undefined,
 ) {
-  const siteSnapshot = getSiteSnapshot(latestEvidence?.metadata);
-
   return {
     organization: {
       id: detection.organization_id,
@@ -389,43 +476,54 @@ function mapDetection(
       firstSeenAt: detection.first_seen_at,
       lastSeenAt: detection.last_seen_at,
       reviewedAt: detection.reviewed_at,
-      latestEvidence: latestEvidence
-        ? {
-            captureStatus: latestEvidence.capture_status,
-            capturedAt: latestEvidence.captured_at,
-            finalUrl: getEvidenceFinalUrl(latestEvidence.metadata),
-            sourceUrlSnapshot: latestEvidence.source_url_snapshot,
-            matchedImageSourceUrl: latestEvidence.matched_image_url_snapshot,
-            siteSnapshot,
-          }
-        : null,
+      latestEvidence: latestEvidence ? mapEvidence(latestEvidence) : null,
     } satisfies AdminCasePlacement,
   };
 }
 
-export async function listAdminCases(): Promise<AdminCaseListItem[]> {
+async function loadCaseRows(filters?: {
+  organizationId?: string;
+  casePublicId?: number;
+}) {
   await requirePanelAccess("admin");
   const supabase = await createClient();
-  const { data: detections, error: detectionsError } = await supabase
+  let query = supabase
     .from("detections")
     .select(
       "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
     )
     .in("status", ["unauthorized", "takedown_sent", "resolved"])
     .is("archived_at", null)
-    .order("last_seen_at", { ascending: false })
-    .returns<DetectionRow[]>();
+    .order("last_seen_at", { ascending: false });
+
+  if (filters?.organizationId) {
+    query = query.eq("organization_id", filters.organizationId);
+  }
+
+  if (typeof filters?.casePublicId === "number") {
+    query = query.eq("case_public_id", filters.casePublicId);
+  }
+
+  const { data: detections, error: detectionsError } = await query.returns<DetectionRow[]>();
 
   if (detectionsError) {
     throw new Error("Nao foi possivel carregar os casos do painel administrativo.");
   }
 
-  const rows = detections ?? [];
+  return detections ?? [];
+}
+
+async function buildAdminCases(filters?: {
+  organizationId?: string;
+  casePublicId?: number;
+}): Promise<AdminCaseListItem[]> {
+  const rows = await loadCaseRows(filters);
 
   if (rows.length === 0) {
     return [];
   }
 
+  const supabase = await createClient();
   const organizationIds = Array.from(new Set(rows.map((item) => item.organization_id)));
   const assetIds = Array.from(new Set(rows.map((item) => item.asset_id)));
   const detectionIds = rows.map((item) => item.id);
@@ -549,32 +647,93 @@ export async function listAdminCases(): Promise<AdminCaseListItem[]> {
         pageMap.set(key, current);
       }
 
-      const pageCoverages = [...pageMap.values()].map((pagePlacements) =>
-        getPageEvidenceCoverage(pagePlacements),
-      );
+      const pages = [...pageMap.entries()]
+        .map(([pageKey, pagePlacements]) => {
+          const sortedPlacements = [...pagePlacements].sort(comparePlacementsDesc);
+          const pageRepresentative = sortedPlacements[0];
+          const evidenceCoverage = getPageEvidenceCoverage(sortedPlacements);
+
+          return {
+            key: pageKey,
+            sourceUrl: pageRepresentative.sourceUrl,
+            canonicalSourceUrl: pageRepresentative.canonicalSourceUrl,
+            pageTitle: pageRepresentative.pageTitle,
+            firstSeenAt: sortedPlacements.reduce(
+              (current, placement) => pickEarliestIsoDate(current, placement.firstSeenAt),
+              pageRepresentative.firstSeenAt,
+            ),
+            lastSeenAt: pageRepresentative.lastSeenAt,
+            placementsCount: sortedPlacements.length,
+            capturedEvidenceCount: sortedPlacements.filter(
+              (placement) => placement.latestEvidence?.captureStatus === "captured",
+            ).length,
+            evidenceCoverage,
+            representativeDetectionId: pageRepresentative.id,
+            placements: sortedPlacements.map((placement) => ({
+              id: placement.id,
+              publicId: placement.publicId,
+              sourceUrl: placement.sourceUrl,
+              pageTitle: placement.pageTitle,
+              status: placement.status,
+              matchType: placement.matchType,
+              confidenceScore: placement.confidenceScore,
+              lastSeenAt: placement.lastSeenAt,
+              reviewedAt: placement.reviewedAt,
+              matchedImageUrl:
+                placement.latestEvidence?.matchedImageUrl ?? placement.matchedImageUrl,
+              latestEvidence: placement.latestEvidence,
+            })),
+          } satisfies AdminCasePageGroup;
+        })
+        .sort((left, right) => compareIsoDatesDesc(left.lastSeenAt, right.lastSeenAt));
+
+      const pageCoverages = pages.map((page) => page.evidenceCoverage);
       const siteSnapshots = placements
         .map((placement) => placement.latestEvidence?.siteSnapshot ?? null)
         .filter((snapshot): snapshot is DetectionSiteSnapshot => Boolean(snapshot));
-      const latestAction = [...group.actions].sort((left, right) =>
-        compareIsoDatesDesc(left.created_at, right.created_at),
-      )[0];
-      const actionActor = latestAction?.user_id ? profilesById.get(latestAction.user_id) : null;
+      const actionHistory = [...group.actions]
+        .sort((left, right) => compareIsoDatesDesc(left.created_at, right.created_at))
+        .map((action) => {
+          const actor = action.user_id ? profilesById.get(action.user_id) : null;
+
+          return {
+            id: action.id,
+            detectionId: action.detection_id,
+            userId: action.user_id,
+            actorName: actor?.full_name ?? actor?.email ?? null,
+            actorEmail: actor?.email ?? null,
+            action: action.action,
+            fromStatus: action.from_status,
+            toStatus: action.to_status,
+            notes: action.notes,
+            reason: parseActionReason(action.metadata),
+            createdAt: action.created_at,
+          } satisfies AdminCaseActionHistoryItem;
+        });
+      const latestAction = actionHistory[0] ?? null;
 
       return {
         key: caseKey,
         publicId: group.casePublicId,
+        representativeDetectionId: representative.id,
+        detectionPublicIds: Array.from(new Set(placements.map((placement) => placement.publicId))).sort(
+          (left, right) => left - right,
+        ),
         organization: group.organization,
         asset: representative.asset,
         domain:
           representative.domain && representative.domain !== "site-nao-identificado"
             ? representative.domain
             : representative.normalizedDomain,
+        normalizedDomain: representative.normalizedDomain,
         primaryPageTitle: representative.pageTitle,
         sourceUrl: representative.sourceUrl,
         finalUrl: representative.latestEvidence?.finalUrl ?? null,
         matchedImageUrl:
+          representative.latestEvidence?.matchedImageUrl ??
           representative.latestEvidence?.matchedImageSourceUrl ??
           representative.matchedImageUrl,
+        screenshotUrl: representative.latestEvidence?.screenshotUrl ?? null,
         status: resolveCaseStatus(placements.map((placement) => placement.status)),
         firstSeenAt: placements.reduce(
           (current, placement) => pickEarliestIsoDate(current, placement.firstSeenAt),
@@ -607,15 +766,31 @@ export async function listAdminCases(): Promise<AdminCaseListItem[]> {
         latestAction: latestAction
           ? {
               action: latestAction.action,
-              actorName: actionActor?.full_name ?? actionActor?.email ?? null,
-              createdAt: latestAction.created_at,
-              fromStatus: latestAction.from_status,
-              toStatus: latestAction.to_status,
+              actorName: latestAction.actorName,
+              actorEmail: latestAction.actorEmail,
+              createdAt: latestAction.createdAt,
+              fromStatus: latestAction.fromStatus,
+              toStatus: latestAction.toStatus,
               notes: latestAction.notes,
-              reason: parseActionReason(latestAction.metadata),
+              reason: latestAction.reason,
             }
           : null,
+        actionHistory,
+        pages,
+        placements,
       } satisfies AdminCaseListItem;
     })
     .sort((left, right) => compareIsoDatesDesc(left.latestSeenAt, right.latestSeenAt));
+}
+
+export async function listAdminCases(): Promise<AdminCaseListItem[]> {
+  return buildAdminCases();
+}
+
+export async function getAdminCaseDetails(
+  organizationId: string,
+  casePublicId: number,
+): Promise<AdminCaseDetails | null> {
+  const cases = await buildAdminCases({ organizationId, casePublicId });
+  return cases[0] ?? null;
 }

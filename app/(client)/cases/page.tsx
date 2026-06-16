@@ -2,31 +2,8 @@ import Link from "next/link";
 import { RefreshDataButton } from "@/components/app/refresh-data-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  formatEvidenceCoverage,
-  getEvidenceCoverageVariant,
-} from "@/lib/detection-ui";
 import { listDetectionIncidents } from "@/lib/dal/detections";
-import { formatPublicId } from "@/lib/public-id";
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "Nao informado";
-  }
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-function formatDomain(value: string) {
-  if (!value || value === "site-nao-identificado") {
-    return "Site nao identificado";
-  }
-
-  return value;
-}
+import { ClientCasesTable } from "./_components/client-cases-table";
 
 export default async function CasesPage() {
   const cases = await listDetectionIncidents({ status: "unauthorized" });
@@ -46,6 +23,7 @@ export default async function CasesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Badge variant="destructive">{cases.length} caso(s)</Badge>
           <RefreshDataButton size="sm" />
           <Button asChild size="sm" variant="outline">
             <Link href="/detections">Revisar ocorrencias</Link>
@@ -63,81 +41,7 @@ export default async function CasesPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-3">
-          {cases.map((item) => (
-            <article
-              key={item.key}
-              className="rounded-lg border border-border bg-card p-4 shadow-sm"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex min-w-0 gap-3">
-                  <div className="size-16 shrink-0 overflow-hidden rounded-md border border-border bg-muted/30">
-                    {item.asset.primaryImageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.asset.primaryImageUrl}
-                        alt={item.asset.title}
-                        className="size-full object-cover"
-                      />
-                    ) : null}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                      Caso {formatPublicId(item.casePublicId)} / Imagem{" "}
-                      {formatPublicId(item.asset.publicId)}
-                    </p>
-                    <p className="text-sm font-medium text-foreground">
-                      {formatDomain(item.domain)}
-                    </p>
-                    <Link
-                      href="/gallery"
-                      className="mt-1 block truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
-                    >
-                      {item.asset.title}
-                    </Link>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Badge variant="destructive">Uso nao autorizado</Badge>
-                      <Badge variant={getEvidenceCoverageVariant(item.evidenceCoverage)}>
-                        {formatEvidenceCoverage(item.evidenceCoverage)}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                <Button asChild size="sm">
-                  <Link href={`/detections/${item.primaryDetectionId}`}>Abrir analise</Link>
-                </Button>
-              </div>
-
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                <div className="rounded-md bg-muted/25 p-3">
-                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Paginas
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {item.pagesCount} pagina(s)
-                  </p>
-                </div>
-                <div className="rounded-md bg-muted/25 p-3">
-                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Evidencias
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {item.capturedEvidenceCount}/{item.placementsCount} capturada(s)
-                  </p>
-                </div>
-                <div className="rounded-md bg-muted/25 p-3">
-                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Ultima deteccao
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {formatDate(item.latestSeenAt)}
-                  </p>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+        <ClientCasesTable rows={cases} />
       )}
     </section>
   );

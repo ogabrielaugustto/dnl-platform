@@ -7,11 +7,11 @@ export default async function AdminLoginPage() {
 
   return (
     <AuthShell
-      asideDescription="Use esta entrada para operacao interna, suporte, auditoria e gerenciamento global do produto."
+      asideDescription="Use esta entrada para operação interna, suporte, auditoria e gerenciamento global do produto."
       asideTitle="Painel administrativo"
-      description="Entre com uma conta interna com permissao administrativa."
-      eyebrow="Administracao"
-      title="Entrar na administracao"
+      description="Entre com uma conta interna com permissão administrativa."
+      eyebrow="Administração"
+      title="Entrar na administração"
     >
       <LoginForm panel="admin" />
     </AuthShell>

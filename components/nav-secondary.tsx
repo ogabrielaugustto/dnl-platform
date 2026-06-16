@@ -8,6 +8,7 @@ import { HowItWorksDialog } from "@/components/how-it-works-dialog"
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -15,6 +16,7 @@ import {
 
 export function NavSecondary({
   items,
+  label,
   ...props
 }: {
   items: {
@@ -22,11 +24,13 @@ export function NavSecondary({
     url: string
     icon: React.ReactNode
   }[]
+  label?: string
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const pathname = usePathname()
 
   return (
     <SidebarGroup {...props}>
+      {label ? <SidebarGroupLabel>{label}</SidebarGroupLabel> : null}
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (

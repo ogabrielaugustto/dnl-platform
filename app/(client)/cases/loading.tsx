@@ -8,24 +8,43 @@ export default function Loading() {
         <Skeleton className="mt-3 h-8 w-full max-w-sm rounded-full" />
         <Skeleton className="mt-2 h-4 w-full max-w-md" />
       </div>
-      <div className="grid gap-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <div className="flex gap-3">
-              <Skeleton className="size-16 rounded-md" />
-              <div className="flex-1">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="mt-2 h-4 w-56" />
-                <Skeleton className="mt-4 h-6 w-48 rounded-full" />
-              </div>
+      <div className="rounded-xl border border-border bg-card shadow-sm">
+        <div className="border-b border-border px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="mt-2 h-4 w-full max-w-md" />
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              {Array.from({ length: 3 }).map((__, cardIndex) => (
-                <Skeleton key={cardIndex} className="h-16 rounded-md" />
+            <Skeleton className="h-9 w-24 rounded-lg" />
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={index} className="h-10 rounded-lg" />
+            ))}
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <Skeleton key={index} className="h-10 rounded-lg xl:col-span-2" />
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-6 gap-3 border-b border-border bg-muted/30 px-4 py-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-3 w-20" />
+          ))}
+        </div>
+        <div className="divide-y divide-border">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="grid gap-3 px-4 py-4 xl:grid-cols-6">
+              {Array.from({ length: 6 }).map((__, cellIndex) => (
+                <div key={cellIndex}>
+                  <Skeleton className="h-4 w-full max-w-[12rem]" />
+                  {cellIndex < 3 ? <Skeleton className="mt-2 h-3 w-full max-w-[9rem]" /> : null}
+                </div>
               ))}
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </section>
   );

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { recordAdminActivity } from "@/lib/admin-activity";
 import { requirePanelAccess } from "@/lib/auth";
 import {
   getDefaultNextRunAt,
@@ -30,7 +31,7 @@ async function getStarterPlanId() {
 }
 
 export async function updateClientScanFrequencyAction(formData: FormData) {
-  await requirePanelAccess("admin");
+  const context = await requirePanelAccess("admin");
 
   const parsed = updateClientScanFrequencySchema.safeParse({
     organizationId: formData.get("organizationId"),
@@ -118,5 +119,18 @@ export async function updateClientScanFrequencyAction(formData: FormData) {
     throw new Error("Nao foi possivel reagendar as buscas ativas.");
   }
 
+  await recordAdminActivity({
+    action: "client_scan_frequency_updated",
+    entity: "organization",
+    entityId: organizationId,
+    metadata: {
+      frequency,
+      summary: `Frequencia de monitoramento ajustada para ${frequency}.`,
+    },
+    organizationId,
+    userId: context.userId,
+  });
+
   revalidatePath("/admin/clients");
+  revalidatePath("/admin/activities");
 }

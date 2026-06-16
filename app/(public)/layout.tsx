@@ -1,7 +1,9 @@
+import { MarketingSiteShell } from "@/components/marketing/site-shell";
+
 export default function PublicLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <div className="flex min-h-screen flex-col">{children}</div>;
+  return <MarketingSiteShell>{children}</MarketingSiteShell>;
 }

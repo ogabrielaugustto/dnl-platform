@@ -6,5 +6,5 @@ export default function Error(props: {
   error: Error & { digest?: string };
   unstable_retry: () => void;
 }) {
-  return <RouteError area="Autenticacao" {...props} />;
+  return <RouteError area="Autenticação" {...props} />;
 }
