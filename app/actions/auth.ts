@@ -13,6 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   type AppPanel,
   type AuthContext,
+  getAuthContext,
   getDefaultPanelPath,
 } from "@/lib/auth";
 import {
@@ -83,7 +84,11 @@ const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
-async function getActionContext(): Promise<AuthContext | null> {
+const signOutSchema = z.object({
+  panel: z.enum(["client", "admin"]).default("client"),
+});
+
+async function getActionContextFresh(): Promise<AuthContext | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -154,7 +159,7 @@ async function ensureCustomerWorkspace(
   organizationName?: string,
 ): Promise<{ ok: boolean; message?: string }> {
   const supabase = await createClient();
-  const context = await getActionContext();
+  const context = await getAuthContext();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -277,17 +282,7 @@ export async function loginAction(
     };
   }
 
-  const workspaceResult = await ensureCustomerWorkspace();
-
-  if (!workspaceResult.ok) {
-    await supabase.auth.signOut();
-    return {
-      status: "error",
-      message: workspaceResult.message,
-    };
-  }
-
-  const context = await getActionContext();
+  const context = await getAuthContext();
 
   if (!context) {
     return {
@@ -296,12 +291,50 @@ export async function loginAction(
     };
   }
 
+  let resolvedContext: AuthContext = context;
+
   if (!context.isActive) {
     await supabase.auth.signOut();
     return {
       status: "error",
       message: "Esta conta esta desativada. Fale com um administrador da DNL.",
     };
+  }
+
+  if (panel === "client" && context.isAdmin) {
+    redirect("/admin");
+  }
+
+  if (panel === "admin") {
+    if (!context.isAdmin) {
+      await supabase.auth.signOut();
+      return {
+        status: "error",
+        message: "Esta conta não possui acesso ao painel administrativo.",
+      };
+    }
+  } else {
+    const workspaceResult = await ensureCustomerWorkspace();
+
+    if (!workspaceResult.ok) {
+      await supabase.auth.signOut();
+      return {
+        status: "error",
+        message: workspaceResult.message,
+      };
+    }
+
+    const refreshedContext = await getActionContextFresh();
+
+    if (!refreshedContext) {
+      await supabase.auth.signOut();
+      return {
+        status: "error",
+        message: "Não foi possível recarregar o contexto da conta autenticada.",
+      };
+    }
+
+    resolvedContext = refreshedContext;
   }
 
   const userMetadata = data.user.user_metadata;
@@ -334,15 +367,7 @@ export async function loginAction(
     redirect("/auth/register?onboarding=resume");
   }
 
-  if (panel === "admin" && !context.isAdmin) {
-    await supabase.auth.signOut();
-    return {
-      status: "error",
-      message: "Esta conta não possui acesso ao painel administrativo.",
-    };
-  }
-
-  if (panel === "client" && !context.membership) {
+  if (panel === "client" && !resolvedContext.membership) {
     await supabase.auth.signOut();
     return {
       status: "error",
@@ -350,7 +375,7 @@ export async function loginAction(
     };
   }
 
-  redirect(getPanelRedirect(panel, context));
+  redirect(getPanelRedirect(panel, resolvedContext));
 }
 
 export async function registerCustomerAction(
@@ -535,7 +560,7 @@ export async function completeCustomerOnboardingAction(
 
   const organizationId =
     user?.id === pendingOnboarding.userId
-      ? (await getActionContext())?.membership?.organizationId ?? null
+      ? (await getActionContextFresh())?.membership?.organizationId ?? null
       : await getOnboardingOrganizationId(pendingOnboarding.userId);
 
   const { error: auditError } = await admin.from("audit_logs").insert({
@@ -577,10 +602,13 @@ export async function completeCustomerOnboardingAction(
   redirect("/auth/login?message=signup-complete");
 }
 
-export async function signOutAction() {
+export async function signOutAction(formData: FormData) {
+  const parsed = signOutSchema.safeParse({
+    panel: formData.get("panel") ?? "client",
+  });
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/auth/login");
+  redirect(parsed.data?.panel === "admin" ? "/admin/login" : "/auth/login");
 }
 
 export async function requestPasswordResetAction(

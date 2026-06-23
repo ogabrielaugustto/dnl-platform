@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { AdminScanListItem } from "@/lib/dal/admin-scans";
 import { formatPublicId } from "@/lib/public-id";
 
@@ -119,36 +120,6 @@ function formatFrequency(value: NonNullable<AdminScanListItem["monitoringRule"]>
   }
 }
 
-function getBadgeVariantForJobStatus(status: AdminScanListItem["status"]) {
-  switch (status) {
-    case "processing":
-      return "default";
-    case "completed":
-      return "secondary";
-    case "failed":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
-
-function getBadgeVariantForRunStatus(
-  status: NonNullable<AdminScanListItem["latestRun"]>["status"] | "none",
-) {
-  switch (status) {
-    case "completed":
-      return "secondary";
-    case "failed":
-      return "destructive";
-    case "started":
-    case "vision_completed":
-    case "evidence_pending":
-      return "default";
-    default:
-      return "outline";
-  }
-}
-
 function formatRequester(row: AdminScanListItem) {
   if (row.requestedBy?.fullName || row.requestedBy?.email) {
     return row.requestedBy.fullName ?? row.requestedBy.email ?? "Usuario interno";
@@ -159,6 +130,89 @@ function formatRequester(row: AdminScanListItem) {
 
 function formatShortId(value: string) {
   return value.slice(0, 8);
+}
+
+function getCompactStatus(row: AdminScanListItem) {
+  if (row.latestRun?.status === "failed" || row.status === "failed") {
+    return {
+      label: "Falhou",
+      variant: "destructive" as const,
+    };
+  }
+
+  if (
+    row.status === "processing" ||
+    row.latestRun?.status === "started" ||
+    row.latestRun?.status === "vision_completed" ||
+    row.latestRun?.status === "evidence_pending"
+  ) {
+    return {
+      label: "Processando",
+      variant: "default" as const,
+    };
+  }
+
+  if (row.status === "completed" || row.latestRun?.status === "completed") {
+    return {
+      label: "Sucesso",
+      variant: "secondary" as const,
+    };
+  }
+
+  if (row.status === "cancelled") {
+    return {
+      label: "Cancelada",
+      variant: "outline" as const,
+    };
+  }
+
+  return {
+    label: "Na fila",
+    variant: "outline" as const,
+  };
+}
+
+function ScanStatusCell({ row }: { row: AdminScanListItem }) {
+  const compactStatus = getCompactStatus(row);
+  const latestError = row.latestRun?.errorMessage ?? row.errorMessage ?? null;
+
+  return (
+    <div className="min-w-0 max-w-[10rem] space-y-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="inline-flex cursor-help">
+            <Badge variant={compactStatus.variant}>{compactStatus.label}</Badge>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-sm whitespace-normal break-words">
+          <div className="space-y-1">
+            <p>Status do job: {formatJobStatus(row.status)}</p>
+            <p>
+              Execucao:{" "}
+              {row.latestRun ? formatRunStatus(row.latestRun.status) : "Sem execucao"}
+            </p>
+            <p>
+              Tentativas: {row.attempts}/{row.maxAttempts}
+            </p>
+            {row.latestRun?.workerId ? <p>Worker: {row.latestRun.workerId}</p> : null}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+
+      {latestError ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="inline-flex cursor-help">
+              <Badge variant="outline">Falha</Badge>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-sm whitespace-normal break-words">
+            {latestError}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+    </div>
+  );
 }
 
 export function AdminScansTable({ rows }: AdminScansTableProps) {
@@ -238,8 +292,8 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
             <div>
               <p className="text-sm font-medium text-foreground">Filtros das varreduras</p>
               <p className="text-sm text-muted-foreground">
-                Pesquise por cliente, imagem, regra, solicitante, worker ou erro
-                para acompanhar a fila completa.
+                Pesquise por cliente, imagem, ID, solicitante, worker ou erro para
+                acompanhar as varreduras rapidamente.
               </p>
             </div>
             <Badge variant="outline">{filteredRows.length} varredura(s)</Badge>
@@ -255,7 +309,7 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
                 <Input
                   className="pl-9"
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Cliente, imagem, regra, usuario, worker ou erro"
+                  placeholder="Cliente, imagem, ID, usuario, worker ou erro"
                   value={search}
                 />
               </div>
@@ -266,7 +320,7 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
                 Cliente
               </label>
               <Select onValueChange={setOrganizationFilter} value={organizationFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todos os clientes" />
                 </SelectTrigger>
                 <SelectContent>
@@ -285,7 +339,7 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
                 Status da fila
               </label>
               <Select onValueChange={setJobStatusFilter} value={jobStatusFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -304,7 +358,7 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
                 Tipo
               </label>
               <Select onValueChange={setTypeFilter} value={typeFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todos os tipos" />
                 </SelectTrigger>
                 <SelectContent>
@@ -323,7 +377,7 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
                 Ultima execucao
               </label>
               <Select onValueChange={setRunStatusFilter} value={runStatusFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Qualquer estado" />
                 </SelectTrigger>
                 <SelectContent>
@@ -361,29 +415,24 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
         <Table className="table-fixed">
           <TableHeader className="bg-muted/40">
             <TableRow>
-              <TableHead>Varredura</TableHead>
-              <TableHead>Cliente e imagem</TableHead>
-              <TableHead>Origem</TableHead>
-              <TableHead>Andamento</TableHead>
-              <TableHead>Execucao</TableHead>
-              <TableHead>Resultado</TableHead>
+              <TableHead className="w-[18%]">ID</TableHead>
+              <TableHead className="w-[26%]">Imagem</TableHead>
+              <TableHead className="w-[12%]">Tipo</TableHead>
+              <TableHead className="w-[14%]">Status</TableHead>
+              <TableHead className="w-[15%]">Inicio</TableHead>
+              <TableHead className="w-[15%]">Fim</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredRows.length > 0 ? (
               filteredRows.map((row) => {
-                const latestError =
-                  row.latestRun?.errorMessage ?? row.errorMessage ?? null;
-
                 return (
                   <TableRow key={row.id}>
                     <TableCell className="align-top">
-                      <div className="min-w-0 max-w-[14rem]">
-                        <p className="font-medium text-foreground">
-                          Job {formatShortId(row.id)}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Agendada em {formatDate(row.scheduledAt)}
+                      <div className="min-w-0 max-w-[16rem]">
+                        <p className="font-medium text-foreground">Job {formatShortId(row.id)}</p>
+                        <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                          {row.id}
                         </p>
                         <p className="mt-2 break-words text-xs text-muted-foreground">
                           Solicitante: {formatRequester(row)}
@@ -393,105 +442,82 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
                     <TableCell className="align-top">
                       <div className="min-w-0 max-w-[16rem]">
                         <p className="font-medium text-foreground">
-                          {row.organization.name}
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
                           {row.asset.publicId
                             ? `Imagem ${formatPublicId(row.asset.publicId)}`
                             : "Imagem sem ID publico"}
                         </p>
-                        <p className="mt-1 break-words text-xs text-muted-foreground">
+                        <p className="mt-1 break-words text-sm text-foreground">
                           {row.asset.title ?? "Titulo nao informado"}
                         </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="flex min-w-0 max-w-[14rem] flex-col gap-2">
-                        <Badge variant="outline">{formatJobType(row.type)}</Badge>
-                        <div className="text-sm">
-                          <p className="break-words font-medium text-foreground">
-                            {row.monitoringRule?.name ?? "Sem regra vinculada"}
-                          </p>
-                          <p className="mt-1 break-words text-xs text-muted-foreground">
-                            {row.monitoringRule
-                              ? `${formatFrequency(row.monitoringRule.frequency)} ${row.monitoringRule.isActive ? "ativa" : "pausada"}`
-                              : "Disparo manual ou legado"}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="min-w-0 max-w-[12rem] space-y-2">
-                        <Badge variant={getBadgeVariantForJobStatus(row.status)}>
-                          {formatJobStatus(row.status)}
-                        </Badge>
-                        <p className="text-sm text-muted-foreground">
-                          Tentativas: {row.attempts}/{row.maxAttempts}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {row.organization.name}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          Prioridade {row.priority}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="min-w-0 max-w-[16rem] space-y-2">
-                        <Badge
-                          variant={getBadgeVariantForRunStatus(
-                            row.latestRun?.status ?? "none",
-                          )}
-                        >
-                          {row.latestRun
-                            ? formatRunStatus(row.latestRun.status)
-                            : "Sem execucao"}
-                        </Badge>
-                        <p className="text-sm text-muted-foreground">
-                          Inicio: {formatDate(row.latestRun?.startedAt ?? row.startedAt)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Fim:{" "}
-                          {formatDate(
-                            row.latestRun?.finishedAt ?? row.finishedAt,
-                            "Ainda em andamento",
-                          )}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {row.latestRun
-                            ? `Tentativa #${row.latestRun.attemptNumber} • ${formatDuration(row.latestRun.durationMs)}`
-                            : "Aguardando worker"}
-                        </p>
-                        {row.latestRun?.workerId ? (
-                          <p className="break-all text-xs text-muted-foreground">
-                            Worker: {row.latestRun.workerId}
+                        {row.detections.count > 0 ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {row.detections.count} ocorrencia(s)
                           </p>
                         ) : null}
                       </div>
                     </TableCell>
                     <TableCell className="align-top">
-                      <div className="min-w-0 max-w-[20rem] space-y-2">
-                        <Badge variant={row.detections.count > 0 ? "default" : "outline"}>
-                          {row.detections.count} ocorrencia(s)
-                        </Badge>
-                        {row.detections.publicIds.length > 0 ? (
-                          <p className="max-w-full whitespace-normal break-all text-xs text-muted-foreground">
-                            IDs:{" "}
-                            {row.detections.publicIds
-                              .map((publicId) => formatPublicId(publicId))
-                              .join(", ")}
-                          </p>
+                      <div className="flex min-w-0 max-w-[10rem] flex-col gap-2">
+                        <Badge variant="outline">{formatJobType(row.type)}</Badge>
+                        {row.monitoringRule ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="cursor-help text-xs text-muted-foreground underline decoration-dotted underline-offset-3">
+                                Regra
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              className="max-w-sm whitespace-normal break-words"
+                            >
+                              {row.monitoringRule.name} •{" "}
+                              {formatFrequency(row.monitoringRule.frequency)} •{" "}
+                              {row.monitoringRule.isActive ? "ativa" : "pausada"}
+                            </TooltipContent>
+                          </Tooltip>
                         ) : (
                           <p className="text-xs text-muted-foreground">
-                            Nenhuma ocorrencia vinculada.
+                            Sem regra
                           </p>
                         )}
-                        {latestError ? (
-                          <p className="max-w-full whitespace-normal break-all text-xs text-destructive">
-                            {latestError}
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <ScanStatusCell row={row} />
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="min-w-0 max-w-[10rem]">
+                        <p className="text-sm text-foreground">
+                          {formatDate(row.latestRun?.startedAt ?? row.startedAt)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {row.latestRun
+                            ? `Tentativa #${row.latestRun.attemptNumber}`
+                            : "Aguardando worker"}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="min-w-0 max-w-[10rem]">
+                        <p className="text-sm text-foreground">
+                          {formatDate(
+                            row.latestRun?.finishedAt ?? row.finishedAt,
+                            "Ainda em andamento",
+                          )}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {row.latestRun
+                            ? formatDuration(row.latestRun.durationMs)
+                            : "Sem duracao"}
+                        </p>
+                        {row.latestRun?.status === "completed" && row.detections.count > 0 ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {row.detections.count} ocorrencia(s)
                           </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            Sem erro registrado.
-                          </p>
-                        )}
+                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>

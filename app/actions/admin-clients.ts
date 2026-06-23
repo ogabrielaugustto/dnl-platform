@@ -10,6 +10,11 @@ import {
 } from "@/lib/dal/assets";
 import { createClient } from "@/lib/server";
 
+export type AdminClientActionState = {
+  message?: string;
+  status?: "error" | "success";
+};
+
 const updateClientScanFrequencySchema = z.object({
   organizationId: z.uuid(),
   frequency: z.enum(["hourly", "daily", "weekly", "monthly"]),
@@ -30,7 +35,9 @@ async function getStarterPlanId() {
   return data.id;
 }
 
-export async function updateClientScanFrequencyAction(formData: FormData) {
+export async function updateClientScanFrequencyAction(
+  formData: FormData,
+): Promise<AdminClientActionState> {
   const context = await requirePanelAccess("admin");
 
   const parsed = updateClientScanFrequencySchema.safeParse({
@@ -39,7 +46,10 @@ export async function updateClientScanFrequencyAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    throw new Error("Frequencia invalida para este cliente.");
+    return {
+      status: "error",
+      message: "Frequencia invalida para este cliente.",
+    };
   }
 
   const { organizationId, frequency } = parsed.data;
@@ -51,7 +61,10 @@ export async function updateClientScanFrequencyAction(formData: FormData) {
     .maybeSingle<{ id: string }>();
 
   if (organizationError || !organization) {
-    throw new Error("Cliente nao encontrado.");
+    return {
+      status: "error",
+      message: "Cliente nao encontrado.",
+    };
   }
 
   const { data: subscription, error: subscriptionError } = await supabase
@@ -64,7 +77,10 @@ export async function updateClientScanFrequencyAction(formData: FormData) {
     .maybeSingle<{ id: string }>();
 
   if (subscriptionError) {
-    throw new Error("Nao foi possivel localizar a assinatura do cliente.");
+    return {
+      status: "error",
+      message: "Nao foi possivel localizar a assinatura do cliente.",
+    };
   }
 
   if (subscription) {
@@ -77,7 +93,10 @@ export async function updateClientScanFrequencyAction(formData: FormData) {
       .eq("organization_id", organizationId);
 
     if (error) {
-      throw new Error("Nao foi possivel atualizar a frequencia do cliente.");
+      return {
+        status: "error",
+        message: "Nao foi possivel atualizar a frequencia do cliente.",
+      };
     }
   } else {
     const starterPlanId = await getStarterPlanId();
@@ -90,7 +109,10 @@ export async function updateClientScanFrequencyAction(formData: FormData) {
     });
 
     if (error) {
-      throw new Error("Nao foi possivel criar a configuracao do cliente.");
+      return {
+        status: "error",
+        message: "Nao foi possivel criar a configuracao do cliente.",
+      };
     }
   }
 
@@ -103,7 +125,10 @@ export async function updateClientScanFrequencyAction(formData: FormData) {
     .is("archived_at", null);
 
   if (updateRulesError) {
-    throw new Error("Nao foi possivel sincronizar as regras de monitoramento.");
+    return {
+      status: "error",
+      message: "Nao foi possivel sincronizar as regras de monitoramento.",
+    };
   }
 
   const { error: updateActiveRulesError } = await supabase
@@ -116,7 +141,10 @@ export async function updateClientScanFrequencyAction(formData: FormData) {
     .is("archived_at", null);
 
   if (updateActiveRulesError) {
-    throw new Error("Nao foi possivel reagendar as buscas ativas.");
+    return {
+      status: "error",
+      message: "Nao foi possivel reagendar as buscas ativas.",
+    };
   }
 
   await recordAdminActivity({
@@ -133,4 +161,9 @@ export async function updateClientScanFrequencyAction(formData: FormData) {
 
   revalidatePath("/admin/clients");
   revalidatePath("/admin/activities");
+
+  return {
+    status: "success",
+    message: "Frequencia salva automaticamente.",
+  };
 }

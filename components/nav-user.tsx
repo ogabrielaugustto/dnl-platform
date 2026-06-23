@@ -142,6 +142,11 @@ export function NavUser({
             </DropdownMenuSub>
             <DropdownMenuSeparator />
             <form action={signOutAction}>
+              <input
+                name="panel"
+                type="hidden"
+                value={user.profileHref.startsWith("/admin") ? "admin" : "client"}
+              />
               <DropdownMenuItem asChild>
                 <Button variant="ghost" type="submit" className="w-full flex justify-start">
                   <LogOutIcon />

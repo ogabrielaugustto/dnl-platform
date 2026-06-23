@@ -8,15 +8,23 @@ import { getAppUrl, sendPasswordRecoveryEmail } from "@/lib/email/service";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type AdminManagementActionState = {
+  credentials?: {
+    email: string;
+    password: string;
+  };
+  invited?: boolean;
   message?: string;
   status?: "error" | "success";
 };
+
+type ManagementScope = "internal" | "client";
 
 const inviteUserSchema = z
   .object({
     fullName: z.string().trim().min(3, "Informe o nome completo."),
     email: z.email("Informe um e-mail valido."),
     accessType: z.enum(["internal", "client"]),
+    sendInvite: z.enum(["true", "false"]).transform((value) => value === "true"),
     organizationId: z.string().optional(),
   })
   .superRefine((value, ctx) => {
@@ -44,10 +52,12 @@ const inviteUserSchema = z
 const toggleUserSchema = z.object({
   userId: z.uuid(),
   nextIsActive: z.enum(["true", "false"]).transform((value) => value === "true"),
+  scope: z.enum(["internal", "client"]),
 });
 
 const passwordResetSchema = z.object({
   userId: z.uuid(),
+  scope: z.enum(["internal", "client"]),
 });
 
 function getMutationErrorMessage(error: unknown, fallback: string) {
@@ -62,7 +72,63 @@ function getMutationErrorMessage(error: unknown, fallback: string) {
 function revalidateAdminManagementPaths() {
   revalidatePath("/admin/users");
   revalidatePath("/admin/organizations");
+  revalidatePath("/admin/clients");
   revalidatePath("/admin/activities");
+}
+
+function getUserManagementScope(params: {
+  systemRole: "user" | "admin" | "super_admin";
+  membershipsCount: number;
+}): ManagementScope | "unassigned" {
+  if (params.systemRole === "admin" || params.systemRole === "super_admin") {
+    return "internal";
+  }
+
+  if (params.membershipsCount > 0) {
+    return "client";
+  }
+
+  return "unassigned";
+}
+
+async function loadManagedUserTarget(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+) {
+  const [profileResponse, membershipsResponse] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("id, email, full_name, system_role")
+      .eq("id", userId)
+      .maybeSingle<{
+        id: string;
+        email: string | null;
+        full_name: string | null;
+        system_role: "user" | "admin" | "super_admin";
+      }>(),
+    admin
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", userId)
+      .returns<Array<{ organization_id: string }>>(),
+  ]);
+
+  if (profileResponse.error || !profileResponse.data || membershipsResponse.error) {
+    return null;
+  }
+
+  const organizationIds = (membershipsResponse.data ?? []).map(
+    (membership) => membership.organization_id,
+  );
+
+  return {
+    profile: profileResponse.data,
+    organizationIds,
+    managementScope: getUserManagementScope({
+      systemRole: profileResponse.data.system_role,
+      membershipsCount: organizationIds.length,
+    }),
+  };
 }
 
 export async function inviteAdminUserAction(
@@ -74,6 +140,7 @@ export async function inviteAdminUserAction(
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     accessType: formData.get("accessType"),
+    sendInvite: formData.get("sendInvite") ?? "true",
     organizationId: formData.get("organizationId") || undefined,
   });
 
@@ -114,29 +181,55 @@ export async function inviteAdminUserAction(
 
   let userId = existingProfile?.id ?? null;
   let wasInvitedNow = false;
+  let generatedPassword: string | null = null;
 
   if (!userId) {
-    const appUrl = getAppUrl();
-    const inviteResponse = await admin.auth.admin.inviteUserByEmail(normalizedEmail, {
-      data: {
-        full_name: parsed.data.fullName,
-      },
-      redirectTo: `${appUrl}/auth/login`,
-    });
+    if (parsed.data.accessType === "internal" && !parsed.data.sendInvite) {
+      generatedPassword = `Dnl@${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+      const createResponse = await admin.auth.admin.createUser({
+        email: normalizedEmail,
+        password: generatedPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: parsed.data.fullName,
+        },
+      });
 
-    if (inviteResponse.error || !inviteResponse.data.user) {
-      return {
-        status: "error",
-        message:
-          getMutationErrorMessage(
-            inviteResponse.error,
-            "Nao foi possivel convidar este usuario agora.",
-          ),
-      };
+      if (createResponse.error || !createResponse.data.user) {
+        return {
+          status: "error",
+          message:
+            getMutationErrorMessage(
+              createResponse.error,
+              "Nao foi possivel criar este usuario agora.",
+            ),
+        };
+      }
+
+      userId = createResponse.data.user.id;
+    } else {
+      const appUrl = getAppUrl();
+      const inviteResponse = await admin.auth.admin.inviteUserByEmail(normalizedEmail, {
+        data: {
+          full_name: parsed.data.fullName,
+        },
+        redirectTo: `${appUrl}/auth/login`,
+      });
+
+      if (inviteResponse.error || !inviteResponse.data.user) {
+        return {
+          status: "error",
+          message:
+            getMutationErrorMessage(
+              inviteResponse.error,
+              "Nao foi possivel convidar este usuario agora.",
+            ),
+        };
+      }
+
+      userId = inviteResponse.data.user.id;
+      wasInvitedNow = true;
     }
-
-    userId = inviteResponse.data.user.id;
-    wasInvitedNow = true;
   }
 
   const { error: upsertProfileError } = await admin.from("profiles").upsert({
@@ -183,6 +276,7 @@ export async function inviteAdminUserAction(
     entityId: userId,
     metadata: {
       accessType: parsed.data.accessType,
+      sendInvite: parsed.data.sendInvite,
       email: normalizedEmail,
       fullName: parsed.data.fullName,
       organizationId: parsed.data.organizationId ?? null,
@@ -197,9 +291,18 @@ export async function inviteAdminUserAction(
   revalidateAdminManagementPaths();
 
   return {
+    credentials: generatedPassword
+      ? {
+          email: normalizedEmail,
+          password: generatedPassword,
+        }
+      : undefined,
+    invited: wasInvitedNow,
     status: "success",
     message:
-      parsed.data.accessType === "internal"
+      parsed.data.accessType === "internal" && generatedPassword
+        ? `Usuario interno criado sem convite. E-mail: ${normalizedEmail} | Senha temporaria: ${generatedPassword}`
+        : parsed.data.accessType === "internal"
         ? wasInvitedNow
           ? "Convite enviado para o colaborador interno."
           : "Acesso interno atualizado com sucesso."
@@ -216,6 +319,7 @@ export async function toggleAdminUserActiveAction(
   const parsed = toggleUserSchema.safeParse({
     userId: formData.get("userId"),
     nextIsActive: formData.get("nextIsActive"),
+    scope: formData.get("scope"),
   });
 
   if (!parsed.success) {
@@ -233,23 +337,22 @@ export async function toggleAdminUserActiveAction(
   }
 
   const admin = createAdminClient();
-  const [profileResponse, membershipsResponse] = await Promise.all([
-    admin
-      .from("profiles")
-      .select("id, email, full_name")
-      .eq("id", parsed.data.userId)
-      .maybeSingle<{ id: string; email: string | null; full_name: string | null }>(),
-    admin
-      .from("organization_members")
-      .select("organization_id")
-      .eq("user_id", parsed.data.userId)
-      .returns<Array<{ organization_id: string }>>(),
-  ]);
+  const target = await loadManagedUserTarget(admin, parsed.data.userId);
 
-  if (profileResponse.error || !profileResponse.data || membershipsResponse.error) {
+  if (!target) {
     return {
       status: "error",
       message: "Usuario nao encontrado para esta alteracao.",
+    };
+  }
+
+  if (target.managementScope !== parsed.data.scope) {
+    return {
+      status: "error",
+      message:
+        parsed.data.scope === "internal"
+          ? "Esta conta nao pertence a gestao de usuarios internos."
+          : "Esta conta nao pertence a gestao de clientes.",
     };
   }
 
@@ -267,9 +370,7 @@ export async function toggleAdminUserActiveAction(
     };
   }
 
-  const organizationIds = (membershipsResponse.data ?? []).map(
-    (membership) => membership.organization_id,
-  );
+  const organizationIds = target.organizationIds;
 
   if (organizationIds.length > 0) {
     const { error: membershipsError } = await admin
@@ -292,12 +393,13 @@ export async function toggleAdminUserActiveAction(
     entity: "user",
     entityId: parsed.data.userId,
     metadata: {
-      email: profileResponse.data.email,
-      fullName: profileResponse.data.full_name,
+      email: target.profile.email,
+      fullName: target.profile.full_name,
+      managementScope: parsed.data.scope,
       organizationIds,
       summary: parsed.data.nextIsActive
-        ? `Conta reativada para ${profileResponse.data.full_name ?? profileResponse.data.email ?? "usuario"}.`
-        : `Conta desativada para ${profileResponse.data.full_name ?? profileResponse.data.email ?? "usuario"}.`,
+        ? `Conta reativada para ${target.profile.full_name ?? target.profile.email ?? "usuario"}.`
+        : `Conta desativada para ${target.profile.full_name ?? target.profile.email ?? "usuario"}.`,
     },
     userId: context.userId,
   });
@@ -316,6 +418,7 @@ export async function sendAdminUserPasswordResetAction(
   const context = await requirePanelAccess("admin");
   const parsed = passwordResetSchema.safeParse({
     userId: formData.get("userId"),
+    scope: formData.get("scope"),
   });
 
   if (!parsed.success) {
@@ -326,16 +429,22 @@ export async function sendAdminUserPasswordResetAction(
   }
 
   const admin = createAdminClient();
-  const { data: profile, error: profileError } = await admin
-    .from("profiles")
-    .select("id, email, full_name")
-    .eq("id", parsed.data.userId)
-    .maybeSingle<{ id: string; email: string | null; full_name: string | null }>();
+  const target = await loadManagedUserTarget(admin, parsed.data.userId);
 
-  if (profileError || !profile?.email) {
+  if (!target?.profile.email) {
     return {
       status: "error",
       message: "Nao foi possivel localizar o e-mail deste usuario.",
+    };
+  }
+
+  if (target.managementScope !== parsed.data.scope) {
+    return {
+      status: "error",
+      message:
+        parsed.data.scope === "internal"
+          ? "Esta conta nao pertence a gestao de usuarios internos."
+          : "Esta conta nao pertence a gestao de clientes.",
     };
   }
 
@@ -343,7 +452,7 @@ export async function sendAdminUserPasswordResetAction(
     const appUrl = getAppUrl();
     const { data, error } = await admin.auth.admin.generateLink({
       type: "recovery",
-      email: profile.email,
+      email: target.profile.email,
       options: {
         redirectTo: `${appUrl}/auth/reset-password`,
       },
@@ -360,7 +469,7 @@ export async function sendAdminUserPasswordResetAction(
       const recoveryUrl = `${appUrl}/auth/confirm?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery&next=${encodeURIComponent("/auth/reset-password")}`;
 
       await sendPasswordRecoveryEmail({
-        to: profile.email,
+        to: target.profile.email,
         recoveryUrl,
       });
     }
@@ -376,9 +485,10 @@ export async function sendAdminUserPasswordResetAction(
     entity: "user",
     entityId: parsed.data.userId,
     metadata: {
-      email: profile.email,
-      fullName: profile.full_name,
-      summary: `Reset de senha enviado para ${profile.full_name ?? profile.email}.`,
+      email: target.profile.email,
+      fullName: target.profile.full_name,
+      managementScope: parsed.data.scope,
+      summary: `Reset de senha enviado para ${target.profile.full_name ?? target.profile.email}.`,
     },
     userId: context.userId,
   });

@@ -120,10 +120,12 @@ export type AdminActivityPageData = {
   rows: AdminActivityListItem[];
 };
 
+type AdminUserScope = "all" | "internal" | "client";
+
 function getUserAccessType(params: {
   systemRole: SystemRole;
   memberships: AdminUserListItem["memberships"];
-}) {
+}): AdminUserListItem["accessType"] {
   const hasInternalAccess =
     params.systemRole === "admin" || params.systemRole === "super_admin";
   const hasClientAccess = params.memberships.some((membership) => membership.isActive);
@@ -143,7 +145,9 @@ function getUserAccessType(params: {
   return "unassigned";
 }
 
-export async function listAdminUsers(): Promise<AdminUserListItem[]> {
+export async function listAdminUsers(
+  scope: AdminUserScope = "all",
+): Promise<AdminUserListItem[]> {
   await requirePanelAccess("admin");
   const admin = createAdminClient();
 
@@ -200,24 +204,36 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
     membershipsByUserId.set(membership.user_id, current);
   }
 
-  return (profiles ?? []).map((profile) => {
-    const memberships = membershipsByUserId.get(profile.id) ?? [];
+  return (profiles ?? [])
+    .map((profile) => {
+      const memberships = membershipsByUserId.get(profile.id) ?? [];
 
-    return {
-      id: profile.id,
-      email: profile.email,
-      fullName: profile.full_name,
-      isActive: profile.is_active,
-      systemRole: profile.system_role,
-      createdAt: profile.created_at,
-      lastSignedInAt: profile.last_signed_in_at,
-      accessType: getUserAccessType({
+      return {
+        id: profile.id,
+        email: profile.email,
+        fullName: profile.full_name,
+        isActive: profile.is_active,
         systemRole: profile.system_role,
+        createdAt: profile.created_at,
+        lastSignedInAt: profile.last_signed_in_at,
+        accessType: getUserAccessType({
+          systemRole: profile.system_role,
+          memberships,
+        }),
         memberships,
-      }),
-      memberships,
-    };
-  });
+      };
+    })
+    .filter((profile) => {
+      if (scope === "internal") {
+        return profile.systemRole === "admin" || profile.systemRole === "super_admin";
+      }
+
+      if (scope === "client") {
+        return profile.systemRole === "user" && profile.memberships.length > 0;
+      }
+
+      return true;
+    });
 }
 
 export async function listAdminOrganizations(): Promise<AdminOrganizationListItem[]> {

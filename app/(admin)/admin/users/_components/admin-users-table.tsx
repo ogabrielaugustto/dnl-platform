@@ -76,6 +76,7 @@ function UserActionButtons({ row }: { row: AdminUserListItem }) {
     const formData = new FormData();
     formData.set("userId", row.id);
     formData.set("nextIsActive", String(!row.isActive));
+    formData.set("scope", "internal");
 
     startTransition(async () => {
       const result = await toggleAdminUserActiveAction(formData);
@@ -93,6 +94,7 @@ function UserActionButtons({ row }: { row: AdminUserListItem }) {
   function runPasswordReset() {
     const formData = new FormData();
     formData.set("userId", row.id);
+    formData.set("scope", "internal");
 
     startTransition(async () => {
       const result = await sendAdminUserPasswordResetAction(formData);
@@ -188,14 +190,14 @@ export function AdminUsersTable({ organizations, rows }: AdminUsersTableProps) {
             <div>
               <p className="text-sm font-medium text-foreground">Filtros de acesso</p>
               <p className="text-sm text-muted-foreground">
-                Pesquise por nome, e-mail, organizacao e estado da conta.
+                Pesquise por nome, e-mail, organizacao e estado das contas internas.
               </p>
             </div>
             <Badge variant="outline">{filteredRows.length} usuario(s)</Badge>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2 xl:col-span-2">
+          <div className="flex flex-col gap-3 xl:flex-row xl:flex-nowrap">
+            <div className="flex-1 space-y-2">
               <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 Buscar usuario
               </label>
@@ -210,12 +212,12 @@ export function AdminUsersTable({ organizations, rows }: AdminUsersTableProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex-1 space-y-2">
               <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 Status
               </label>
               <Select onValueChange={setStatusFilter} value={statusFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -226,12 +228,12 @@ export function AdminUsersTable({ organizations, rows }: AdminUsersTableProps) {
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex-1 space-y-2">
               <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 Tipo de acesso
               </label>
               <Select onValueChange={setAccessFilter} value={accessFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todos os acessos" />
                 </SelectTrigger>
                 <SelectContent>
@@ -243,15 +245,13 @@ export function AdminUsersTable({ organizations, rows }: AdminUsersTableProps) {
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2 xl:col-span-2">
+            <div className="flex-1 space-y-2">
               <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 Organizacao
               </label>
               <Select onValueChange={setOrganizationFilter} value={organizationFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todas as organizacoes" />
                 </SelectTrigger>
                 <SelectContent>
@@ -264,22 +264,21 @@ export function AdminUsersTable({ organizations, rows }: AdminUsersTableProps) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            <div className="flex items-end gap-2 xl:col-span-2">
-              <Button
-                className="w-full xl:w-auto"
-                onClick={() => {
-                  setSearch("");
-                  setStatusFilter("all");
-                  setAccessFilter("all");
-                  setOrganizationFilter("all");
-                }}
-                type="button"
-                variant="ghost"
-              >
-                Limpar filtros
-              </Button>
-            </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("all");
+                setAccessFilter("all");
+                setOrganizationFilter("all");
+              }}
+              type="button"
+              variant="ghost"
+            >
+              Limpar filtros
+            </Button>
           </div>
         </div>
       </div>
