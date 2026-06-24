@@ -12,7 +12,7 @@ function filterClasses(isActive: boolean) {
 
 function viewClasses(isActive: boolean) {
   return isActive
-    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+    ? "border-primary bg-primary text-primary-foreground "
     : "border-border bg-background text-muted-foreground hover:text-foreground";
 }
 
@@ -53,7 +53,7 @@ export function AssetFolderFilter({
   viewMode: AssetViewMode;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-3 py-3 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-3 py-3 ">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">

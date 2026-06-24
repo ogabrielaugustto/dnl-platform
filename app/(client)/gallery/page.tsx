@@ -88,7 +88,7 @@ export default async function GalleryPage({ searchParams }: AssetsPageProps) {
 
         <div className="flex flex-wrap gap-2">
           <RefreshDataButton size="sm" />
-          <Button asChild size="sm" className="shadow-sm">
+          <Button asChild size="sm" className="">
             <Link href="/gallery/new">
               <Plus className="size-4" aria-hidden="true" />
               Adicionar imagem
@@ -128,7 +128,7 @@ export default async function GalleryPage({ searchParams }: AssetsPageProps) {
       ) : null}
 
       {assets.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-card/60 p-8 text-center shadow-sm">
+        <div className="rounded-lg border border-dashed border-border bg-card/60 p-8 text-center ">
           <h2 className="font-heading text-2xl font-semibold tracking-tight">
             Nenhuma imagem encontrada neste recorte
           </h2>

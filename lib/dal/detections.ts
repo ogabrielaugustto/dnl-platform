@@ -57,6 +57,18 @@ type DetectionEvidenceRow = {
   created_at: string;
 };
 
+type DetectionActionRow = {
+  id: string;
+  detection_id: string;
+  user_id: string | null;
+  action: string;
+  from_status: string | null;
+  to_status: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
+
 type ProfileRow = {
   id: string;
   full_name: string | null;
@@ -165,6 +177,64 @@ export type DetectionDetails = DetectionPlacementListItem & {
   currentPage: DetectionIncidentPageGroup | null;
 };
 
+export type DetectionCaseActionHistoryItem = {
+  id: string;
+  detectionId: string;
+  userId: string | null;
+  actorName: string | null;
+  actorEmail: string | null;
+  action: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  notes: string | null;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type DetectionCaseListItem = {
+  key: string;
+  publicId: number;
+  representativeDetectionId: string;
+  detectionPublicIds: number[];
+  asset: DetectionPlacementListItem["asset"];
+  domain: string;
+  normalizedDomain: string;
+  primaryPageTitle: string | null;
+  sourceUrl: string;
+  finalUrl: string | null;
+  matchedImageUrl: string | null;
+  screenshotUrl: string | null;
+  status: string;
+  firstSeenAt: string;
+  latestSeenAt: string;
+  clientReviewedAt: string | null;
+  evidenceCoverage: DetectionEvidenceCoverage;
+  pagesCount: number;
+  placementsCount: number;
+  capturedEvidenceCount: number;
+  siteSignals: {
+    cnpjCandidates: string[];
+    emails: string[];
+    phones: string[];
+    siteName: string | null;
+  };
+  latestAction: {
+    action: string;
+    actorName: string | null;
+    actorEmail: string | null;
+    createdAt: string;
+    fromStatus: string | null;
+    toStatus: string | null;
+    notes: string | null;
+    reason: string | null;
+  } | null;
+  actionHistory: DetectionCaseActionHistoryItem[];
+  pages: DetectionIncidentPageGroup[];
+  placements: DetectionPlacementListItem[];
+};
+
+export type DetectionCaseDetails = DetectionCaseListItem;
+
 function buildEvidenceImageUrl(detectionId: string, evidenceId: string) {
   return `/api/detections/${detectionId}/evidences/${evidenceId}/image`;
 }
@@ -206,6 +276,17 @@ function getMetadataValue(metadata: Record<string, unknown> | null | undefined, 
 function getEvidenceFinalUrl(metadata: Record<string, unknown> | null | undefined) {
   const finalUrl = getMetadataValue(metadata, "finalUrl");
   return typeof finalUrl === "string" && finalUrl.length > 0 ? finalUrl : null;
+}
+
+function uniqueStrings(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value && value.trim().length > 0))),
+  );
+}
+
+function parseActionReason(metadata: Record<string, unknown> | null | undefined) {
+  const reason = getMetadataValue(metadata, "reason");
+  return typeof reason === "string" && reason.trim().length > 0 ? reason : null;
 }
 
 function getSiteSnapshot(
@@ -288,6 +369,22 @@ function compareIsoDatesDesc(left: string | null, right: string | null) {
 
 function pickEarliestIsoDate(left: string, right: string) {
   return new Date(left).getTime() <= new Date(right).getTime() ? left : right;
+}
+
+function resolveCaseStatus(statuses: string[]) {
+  if (statuses.includes("unauthorized")) {
+    return "unauthorized";
+  }
+
+  if (statuses.includes("takedown_sent")) {
+    return "takedown_sent";
+  }
+
+  if (statuses.includes("resolved")) {
+    return "resolved";
+  }
+
+  return statuses[0] ?? "unauthorized";
 }
 
 function comparePlacementsDesc(
@@ -743,6 +840,224 @@ export async function listDetectionIncidents(filters?: {
 
     return true;
   });
+}
+
+async function listCaseRows(filters?: {
+  casePublicId?: number;
+}): Promise<DetectionRow[]> {
+  const { organizationId } = await requireActiveOrganization();
+  const supabase = await createClient();
+  let query = supabase
+    .from("detections")
+    .select(
+      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
+    )
+    .eq("organization_id", organizationId)
+    .in("status", ["unauthorized", "takedown_sent", "resolved"])
+    .is("archived_at", null)
+    .order("last_seen_at", { ascending: false });
+
+  if (typeof filters?.casePublicId === "number") {
+    query = query.eq("case_public_id", filters.casePublicId);
+  }
+
+  const { data, error } = await query.limit(250);
+
+  if (error) {
+    throw new Error("Nao foi possivel carregar os casos.");
+  }
+
+  return (data ?? []) as DetectionRow[];
+}
+
+async function buildDetectionCases(filters?: {
+  casePublicId?: number;
+}): Promise<DetectionCaseListItem[]> {
+  const { organizationId } = await requireActiveOrganization();
+  const rows = await listCaseRows(filters);
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const assetIds = Array.from(new Set(rows.map((row) => row.asset_id)));
+  const detectionIds = rows.map((row) => row.id);
+
+  const [assetsById, filesByAssetId, latestEvidenceByDetectionId, actionsResponse] =
+    await Promise.all([
+      listAssetRowsById(organizationId, assetIds),
+      listPrimaryAssetFiles(organizationId, assetIds),
+      listLatestEvidenceByDetectionId(organizationId, detectionIds),
+      supabase
+        .from("detection_actions")
+        .select("id, detection_id, user_id, action, from_status, to_status, notes, metadata, created_at")
+        .eq("organization_id", organizationId)
+        .in("detection_id", detectionIds)
+        .order("created_at", { ascending: false }),
+    ]);
+
+  if (actionsResponse.error) {
+    throw new Error("Nao foi possivel carregar o historico dos casos.");
+  }
+
+  const actions = (actionsResponse.data ?? []) as DetectionActionRow[];
+  const profileIds = uniqueStrings(actions.map((action) => action.user_id));
+  const profilesResponse = profileIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", profileIds)
+    : { data: [], error: null };
+
+  if (profilesResponse.error) {
+    throw new Error("Nao foi possivel carregar os responsaveis pelos casos.");
+  }
+
+  const profilesById = new Map(
+    ((profilesResponse.data ?? []) as ProfileRow[]).map((profile) => [profile.id, profile]),
+  );
+  const actionsByDetectionId = new Map<string, DetectionActionRow[]>();
+
+  for (const action of actions) {
+    const current = actionsByDetectionId.get(action.detection_id) ?? [];
+    current.push(action);
+    actionsByDetectionId.set(action.detection_id, current);
+  }
+
+  const groupedCases = new Map<
+    number,
+    {
+      placements: DetectionPlacementListItem[];
+      actions: DetectionActionRow[];
+    }
+  >();
+
+  for (const row of rows) {
+    const placement = mapDetection(
+      row,
+      assetsById.get(row.asset_id),
+      filesByAssetId.get(row.asset_id),
+      latestEvidenceByDetectionId.get(row.id),
+    );
+    const current = groupedCases.get(row.case_public_id) ?? {
+      placements: [],
+      actions: [],
+    };
+
+    current.placements.push(placement);
+    current.actions.push(...(actionsByDetectionId.get(row.id) ?? []));
+    groupedCases.set(row.case_public_id, current);
+  }
+
+  return [...groupedCases.entries()]
+    .map(([casePublicId, group]) => {
+      const placements = [...group.placements].sort(comparePlacementsDesc);
+      const pages = buildIncidentPageGroups(placements);
+      const representative = placements[0];
+      const siteSnapshots = placements
+        .map((placement) => placement.latestEvidence?.siteSnapshot ?? null)
+        .filter((snapshot): snapshot is DetectionSiteSnapshot => Boolean(snapshot));
+      const actionHistory = [...group.actions]
+        .sort((left, right) => compareIsoDatesDesc(left.created_at, right.created_at))
+        .map((action) => {
+          const actor = action.user_id ? profilesById.get(action.user_id) : null;
+
+          return {
+            id: action.id,
+            detectionId: action.detection_id,
+            userId: action.user_id,
+            actorName: actor?.full_name ?? actor?.email ?? null,
+            actorEmail: actor?.email ?? null,
+            action: action.action,
+            fromStatus: action.from_status,
+            toStatus: action.to_status,
+            notes: action.notes,
+            reason: parseActionReason(action.metadata),
+            createdAt: action.created_at,
+          } satisfies DetectionCaseActionHistoryItem;
+        });
+      const latestAction = actionHistory[0] ?? null;
+
+      return {
+        key: `${organizationId}:${casePublicId}`,
+        publicId: casePublicId,
+        representativeDetectionId: representative.id,
+        detectionPublicIds: Array.from(new Set(placements.map((placement) => placement.publicId))).sort(
+          (left, right) => left - right,
+        ),
+        asset: representative.asset,
+        domain:
+          representative.domain && representative.domain !== "site-nao-identificado"
+            ? representative.domain
+            : representative.normalizedDomain,
+        normalizedDomain: representative.normalizedDomain,
+        primaryPageTitle: representative.pageTitle,
+        sourceUrl: representative.sourceUrl,
+        finalUrl: representative.latestEvidence?.finalUrl ?? null,
+        matchedImageUrl:
+          representative.latestEvidence?.matchedImageUrl ??
+          representative.latestEvidence?.matchedImageSourceUrl ??
+          representative.matchedImageUrl,
+        screenshotUrl: representative.latestEvidence?.screenshotUrl ?? null,
+        status: resolveCaseStatus(placements.map((placement) => placement.status)),
+        firstSeenAt: placements.reduce(
+          (current, placement) => pickEarliestIsoDate(current, placement.firstSeenAt),
+          representative.firstSeenAt,
+        ),
+        latestSeenAt: representative.lastSeenAt,
+        clientReviewedAt: placements.reduce<string | null>((latest, placement) => {
+          if (!placement.reviewedAt) {
+            return latest;
+          }
+
+          if (!latest || new Date(placement.reviewedAt).getTime() > new Date(latest).getTime()) {
+            return placement.reviewedAt;
+          }
+
+          return latest;
+        }, null),
+        evidenceCoverage: getIncidentEvidenceCoverage(pages),
+        pagesCount: pages.length,
+        placementsCount: placements.length,
+        capturedEvidenceCount: placements.filter(
+          (placement) => placement.latestEvidence?.captureStatus === "captured",
+        ).length,
+        siteSignals: {
+          cnpjCandidates: uniqueStrings(siteSnapshots.flatMap((snapshot) => snapshot.cnpjCandidates)),
+          emails: uniqueStrings(siteSnapshots.flatMap((snapshot) => snapshot.emails)),
+          phones: uniqueStrings(siteSnapshots.flatMap((snapshot) => snapshot.phones)),
+          siteName: uniqueStrings(siteSnapshots.map((snapshot) => snapshot.siteName))[0] ?? null,
+        },
+        latestAction: latestAction
+          ? {
+              action: latestAction.action,
+              actorName: latestAction.actorName,
+              actorEmail: latestAction.actorEmail,
+              createdAt: latestAction.createdAt,
+              fromStatus: latestAction.fromStatus,
+              toStatus: latestAction.toStatus,
+              notes: latestAction.notes,
+              reason: latestAction.reason,
+            }
+          : null,
+        actionHistory,
+        pages,
+        placements,
+      } satisfies DetectionCaseListItem;
+    })
+    .sort((left, right) => compareIsoDatesDesc(left.latestSeenAt, right.latestSeenAt));
+}
+
+export async function listClientCases(): Promise<DetectionCaseListItem[]> {
+  return buildDetectionCases();
+}
+
+export async function getClientCaseDetails(
+  casePublicId: number,
+): Promise<DetectionCaseDetails | null> {
+  const cases = await buildDetectionCases({ casePublicId });
+  return cases[0] ?? null;
 }
 
 export async function getDetectionDetails(detectionId: string): Promise<DetectionDetails> {

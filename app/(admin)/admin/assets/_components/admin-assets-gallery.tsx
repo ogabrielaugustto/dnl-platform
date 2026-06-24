@@ -203,7 +203,7 @@ export function AdminAssetsGallery({ rows }: AdminAssetsGalleryProps) {
 
   return (
     <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="rounded-xl border border-border bg-card shadow-sm">
+      <aside className="rounded-xl border border-border bg-card ">
         <div className="border-b border-border px-4 py-4">
           <p className="text-sm font-medium text-foreground">Clientes</p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -252,7 +252,7 @@ export function AdminAssetsGallery({ rows }: AdminAssetsGalleryProps) {
         </div>
       </aside>
 
-      <div className="rounded-xl border border-border bg-card shadow-sm">
+      <div className="rounded-xl border border-border bg-card">
         <div className="border-b border-border px-4 py-4 md:px-5">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -379,7 +379,7 @@ export function AdminAssetsGallery({ rows }: AdminAssetsGalleryProps) {
                   {group.items.map((asset) => (
                     <article
                       key={asset.id}
-                      className="flex h-full flex-col rounded-xl border border-border bg-card/70 shadow-sm"
+                      className="flex h-full flex-col rounded-xl border border-border bg-card/70 "
                     >
                       <div className="aspect-[4/3] overflow-hidden rounded-t-xl border-b border-border bg-muted/30">
                         {asset.primaryFile?.publicUrl ? (

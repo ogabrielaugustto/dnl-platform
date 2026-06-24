@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function GalleryCardSkeleton() {
   return (
-    <div className="rounded-lg border border-border bg-card p-2.5 shadow-sm">
+    <div className="rounded-lg border border-border bg-card p-2.5 ">
       <Skeleton className="aspect-square w-full rounded-md" />
       <div className="mt-2.5 space-y-2">
         <Skeleton className="h-3 w-16" />
@@ -29,7 +29,7 @@ export default function Loading() {
         <Skeleton className="h-8 w-36 rounded-md" />
       </header>
 
-      <div className="rounded-lg border border-border bg-card px-3 py-3 shadow-sm">
+      <div className="rounded-lg border border-border bg-card px-3 py-3 ">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <Skeleton className="h-5 w-20" />

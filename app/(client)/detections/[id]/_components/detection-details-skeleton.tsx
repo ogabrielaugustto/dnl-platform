@@ -14,7 +14,7 @@ export function DetectionDetailsSkeleton() {
             <Skeleton className="min-h-80 rounded-lg" />
             <Skeleton className="min-h-80 rounded-lg" />
           </div>
-          <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="rounded-lg border border-border bg-card p-4 ">
             <Skeleton className="h-9 w-full max-w-md" />
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, index) => (
@@ -26,7 +26,7 @@ export function DetectionDetailsSkeleton() {
 
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="rounded-lg border border-border bg-card p-4 shadow-sm">
+            <div key={index} className="rounded-lg border border-border bg-card p-4 ">
               <Skeleton className="h-6 w-36" />
               <Skeleton className="mt-3 h-4 w-full" />
               <Skeleton className="mt-4 h-9 w-full rounded-full" />

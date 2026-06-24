@@ -51,10 +51,21 @@ export function SiteBreadcrumbs() {
     href: `${isAdmin ? "/admin" : ""}/${segments.slice(0, index + 1).join("/")}`,
     label: getLabel(segment),
   }));
+  const collapsedItems = items.reduce<typeof items>((accumulator, item) => {
+    const previousItem = accumulator[accumulator.length - 1];
+
+    if (previousItem?.label === item.label) {
+      previousItem.href = item.href;
+      return accumulator;
+    }
+
+    accumulator.push({ ...item });
+    return accumulator;
+  }, []);
 
   const normalizedItems =
-    items.length > 0
-      ? items
+    collapsedItems.length > 0
+      ? collapsedItems
       : [
           {
             href: isAdmin ? "/admin" : "/dashboard",

@@ -80,7 +80,7 @@ function MonitoringToggleButton({
       >
         <span
           className={cn(
-            "absolute left-0.5 top-1/2 size-3 -translate-y-1/2 rounded-full bg-background shadow-sm transition-transform",
+            "absolute left-0.5 top-1/2 size-3 -translate-y-1/2 rounded-full bg-background  transition-transform",
             isActive ? "translate-x-3.5" : "translate-x-0",
           )}
         />

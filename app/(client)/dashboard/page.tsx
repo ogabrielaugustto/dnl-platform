@@ -215,7 +215,7 @@ function SummaryCard({
 
   return (
     <article
-      className={`relative isolate min-h-[154px] overflow-hidden rounded-xl border border-border bg-gradient-to-br ${toneClasses.panel} to-card p-5 shadow-sm ring-1 ring-foreground/5 transition-colors hover:border-foreground/20`}
+      className={`relative isolate min-h-[154px] overflow-hidden rounded-xl border border-border bg-linear-to-br ${toneClasses.panel} to-card p-5 ring-1 ring-foreground/5 transition-colors hover:border-foreground/20`}
     >
       <div
         aria-hidden="true"
@@ -285,7 +285,7 @@ export default async function DashboardPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <RefreshDataButton size="sm" />
-          <Button asChild size="sm" className="shadow-sm">
+          <Button asChild size="sm" >
             <Link href="/gallery/new">
               <UploadCloudIcon className="size-4" />
               Enviar imagem

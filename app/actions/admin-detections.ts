@@ -23,6 +23,7 @@ const updateAdminDetectionStatusSchema = z.object({
 
 type DetectionActionRow = {
   id: string;
+  case_public_id: number;
   organization_id: string;
   asset_id: string;
   source_url: string;
@@ -94,7 +95,7 @@ export async function updateAdminDetectionStatusAction(formData: FormData) {
   const supabase = await createClient();
   const { data: detection, error: detectionError } = await supabase
     .from("detections")
-    .select("id, organization_id, asset_id, source_url, canonical_source_url, domain, status")
+    .select("id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, domain, status")
     .eq("id", parsed.data.detectionId)
     .maybeSingle<DetectionActionRow>();
 
@@ -131,6 +132,8 @@ export async function updateAdminDetectionStatusAction(formData: FormData) {
   if (detectionsToUpdate.length === 0) {
     revalidatePath("/admin/detections");
     revalidatePath(parsed.data.redirectTo);
+    revalidatePath("/cases");
+    revalidatePath(`/cases/${representative.case_public_id}`);
     return;
   }
 
@@ -177,4 +180,6 @@ export async function updateAdminDetectionStatusAction(formData: FormData) {
   revalidatePath("/admin/cases");
   revalidatePath("/gallery");
   revalidatePath("/detections");
+  revalidatePath("/cases");
+  revalidatePath(`/cases/${representative.case_public_id}`);
 }

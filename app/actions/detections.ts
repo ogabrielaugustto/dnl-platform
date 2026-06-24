@@ -23,6 +23,7 @@ const updateDetectionStatusSchema = z.object({
 
 type DetectionActionRow = {
   id: string;
+  case_public_id: number;
   asset_id: string;
   source_url: string;
   canonical_source_url: string;
@@ -93,7 +94,7 @@ export async function updateDetectionStatusAction(formData: FormData) {
   const supabase = await createClient();
   const { data: detection, error: detectionError } = await supabase
     .from("detections")
-    .select("id, asset_id, source_url, canonical_source_url, domain, status")
+    .select("id, case_public_id, asset_id, source_url, canonical_source_url, domain, status")
     .eq("organization_id", organizationId)
     .eq("id", parsed.data.detectionId)
     .maybeSingle();
@@ -131,6 +132,7 @@ export async function updateDetectionStatusAction(formData: FormData) {
     revalidatePath("/detections");
     revalidatePath(`/detections/${representative.id}`);
     revalidatePath("/cases");
+    revalidatePath(`/cases/${representative.case_public_id}`);
     return;
   }
 
@@ -174,6 +176,7 @@ export async function updateDetectionStatusAction(formData: FormData) {
 
   revalidatePath("/detections");
   revalidatePath("/cases");
+  revalidatePath(`/cases/${representative.case_public_id}`);
   revalidatePath(`/detections/${representative.id}`);
   revalidatePath("/gallery");
 }

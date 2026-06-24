@@ -20,7 +20,7 @@ export function RenameFolderForm({
   return (
     <form
       action={action}
-      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-sm"
+      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 "
     >
       <input type="hidden" name="folderId" value={folderId} />
       <div>

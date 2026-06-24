@@ -184,7 +184,7 @@ function ScanStatusCell({ row }: { row: AdminScanListItem }) {
             <Badge variant={compactStatus.variant}>{compactStatus.label}</Badge>
           </div>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-sm whitespace-normal break-words">
+        <TooltipContent side="top" className="max-w-sm whitespace-normal wrap-break-word">
           <div className="space-y-1">
             <p>Status do job: {formatJobStatus(row.status)}</p>
             <p>
@@ -206,7 +206,7 @@ function ScanStatusCell({ row }: { row: AdminScanListItem }) {
               <Badge variant="outline">Falha</Badge>
             </div>
           </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-sm whitespace-normal break-words">
+          <TooltipContent side="top" className="max-w-sm whitespace-normal wrap-break-word">
             {latestError}
           </TooltipContent>
         </Tooltip>
@@ -434,7 +434,7 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
                         <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
                           {row.id}
                         </p>
-                        <p className="mt-2 break-words text-xs text-muted-foreground">
+                        <p className="mt-2 wrap-break-word text-xs text-muted-foreground">
                           Solicitante: {formatRequester(row)}
                         </p>
                       </div>
@@ -446,7 +446,7 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
                             ? `Imagem ${formatPublicId(row.asset.publicId)}`
                             : "Imagem sem ID publico"}
                         </p>
-                        <p className="mt-1 break-words text-sm text-foreground">
+                        <p className="mt-1 wrap-break-word text-sm text-foreground">
                           {row.asset.title ?? "Titulo nao informado"}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
@@ -471,7 +471,7 @@ export function AdminScansTable({ rows }: AdminScansTableProps) {
                             </TooltipTrigger>
                             <TooltipContent
                               side="top"
-                              className="max-w-sm whitespace-normal break-words"
+                              className="max-w-sm whitespace-normal wrap-break-word"
                             >
                               {row.monitoringRule.name} •{" "}
                               {formatFrequency(row.monitoringRule.frequency)} •{" "}

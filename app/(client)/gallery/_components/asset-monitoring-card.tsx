@@ -69,7 +69,7 @@ function isProcessingAsset(asset: AssetListItem) {
 
 function ProcessingOverlay({ label }: { label: string }) {
   return (
-    <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 flex items-center gap-2 rounded-md border border-white/15 bg-background/90 px-2.5 py-2 text-xs font-medium text-foreground shadow-sm backdrop-blur">
+    <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 flex items-center gap-2 rounded-md border border-white/15 bg-background/90 px-2.5 py-2 text-xs font-medium text-foreground  backdrop-blur">
       <Spinner className="size-3.5 text-primary" />
       <span className="truncate">{label}</span>
     </div>
@@ -89,10 +89,10 @@ export function AssetMonitoringCard({
 
   if (viewMode === "rows") {
     return (
-      <article className="rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md">
+      <article className="rounded-lg border border-border bg-card p-3  transition-shadow hover:shadow-md">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
           <div className="relative h-24 overflow-hidden rounded-md border border-border bg-muted/30 sm:w-28 lg:h-20 lg:w-20 xl:h-24 xl:w-24">
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-14 bg-gradient-to-b from-black/35 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-14 bg-linear-to-b from-black/35 to-transparent" />
             <div className="absolute left-2 top-2 z-10">
               <ArchiveAssetForm assetId={asset.id} floating />
             </div>
@@ -181,9 +181,9 @@ export function AssetMonitoringCard({
   }
 
   return (
-    <article className="group overflow-hidden rounded-lg border border-border bg-card p-2 shadow-sm transition-shadow hover:shadow-md">
+    <article className="group overflow-hidden rounded-lg border border-border bg-card p-2  transition-shadow hover:shadow-md">
       <div className="relative aspect-square overflow-hidden rounded-md bg-muted/30">
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-black/40 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-linear-to-b from-black/40 to-transparent" />
         <div className="absolute left-2.5 top-2.5 z-20">
           <ArchiveAssetForm assetId={asset.id} floating />
         </div>

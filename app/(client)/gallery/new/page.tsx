@@ -6,7 +6,7 @@ export default async function NewAssetPage() {
 
   return (
     <section className="flex w-full flex-1 flex-col gap-6 px-6 py-10 md:px-8">
-      <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+      <div className="rounded-3xl border border-border bg-card p-8 ">
         <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
           Galeria
         </p>

@@ -268,7 +268,7 @@ export function AssetBatchUploadForm({
         </Field>
       </div>
 
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+      <div className="rounded-3xl border border-border bg-card p-6 ">
         <label
           htmlFor={dropzoneId}
           onDragOver={(event) => {
@@ -286,7 +286,7 @@ export function AssetBatchUploadForm({
               : "border-border bg-muted/20 hover:border-primary/40 hover:bg-primary/5"
           }`}
         >
-          <div className="rounded-full bg-background p-4 shadow-sm">
+          <div className="rounded-full bg-background p-4 ">
             <UploadIcon className="size-7 text-muted-foreground" />
           </div>
           <h3 className="mt-6 font-heading text-2xl font-semibold tracking-tight">

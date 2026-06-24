@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function SummaryCardSkeleton() {
   return (
-    <article className="relative isolate min-h-[154px] overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm ring-1 ring-foreground/5">
+    <article className="relative isolate min-h-[154px] overflow-hidden rounded-xl border border-border bg-card p-5  ring-1 ring-foreground/5">
       <Skeleton className="absolute inset-x-0 top-0 h-1 rounded-none" />
       <div className="flex h-full flex-col justify-between gap-5">
         <div className="flex items-start justify-between gap-4">
@@ -24,7 +24,7 @@ function SummaryCardSkeleton() {
 
 function QueueSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm">
+    <div className="rounded-xl border border-border bg-card ">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-6">
         <div className="min-w-0 flex-1">
           <Skeleton className="h-6 w-32" />
@@ -53,7 +53,7 @@ function QueueSkeleton() {
 
 function ActivitySkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm">
+    <div className="rounded-xl border border-border bg-card ">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-6">
         <div>
           <Skeleton className="h-6 w-40" />
@@ -82,7 +82,7 @@ function ActivitySkeleton() {
 
 function InsightsSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm">
+    <div className="rounded-xl border border-border bg-card ">
       <div className="border-b border-border p-6">
         <Skeleton className="h-6 w-32" />
         <Skeleton className="mt-2 h-4 w-36" />

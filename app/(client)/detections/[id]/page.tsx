@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { updateDetectionStatusAction } from "@/app/actions/detections";
 import { DetectionDetailsTabs } from "./_components/detection-details-tabs";
+import { IncidentActionsPanel } from "./_components/incident-actions-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,7 @@ type DetectionDetailsPageProps = {
 
 function formatDate(value: string | null) {
   if (!value) {
-    return "Nao informado";
+    return "Não informado";
   }
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -32,7 +32,7 @@ function formatDate(value: string | null) {
 
 function formatDomain(value: string) {
   if (!value || value === "site-nao-identificado") {
-    return "Site nao identificado";
+    return "Site não identificado";
   }
 
   return value;
@@ -42,33 +42,6 @@ function isCaseStatus(status: string) {
   return status === "unauthorized";
 }
 
-function DecisionButton({
-  detectionId,
-  nextStatus,
-  label,
-  reason,
-  variant = "outline",
-}: {
-  detectionId: string;
-  nextStatus: string;
-  label: string;
-  reason?: string;
-  variant?: "default" | "outline" | "secondary";
-}) {
-  return (
-    <form action={updateDetectionStatusAction}>
-      <input type="hidden" name="detectionId" value={detectionId} />
-      <input type="hidden" name="nextStatus" value={nextStatus} />
-      <input type="hidden" name="scope" value="incident" />
-      <input type="hidden" name="redirectTo" value={`/detections/${detectionId}`} />
-      {reason ? <input type="hidden" name="reason" value={reason} /> : null}
-      <Button type="submit" size="sm" variant={variant}>
-        {label}
-      </Button>
-    </form>
-  );
-}
-
 function ImagePanel(props: {
   title: string;
   imageUrl: string | null;
@@ -76,7 +49,7 @@ function ImagePanel(props: {
   fallback: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+    <div className="rounded-lg border border-border bg-card p-4 ">
       <h2 className="text-sm font-medium text-foreground">{props.title}</h2>
       <div className="mt-3 overflow-hidden rounded-md border border-border bg-muted/30">
         {props.imageUrl ? (
@@ -128,16 +101,13 @@ export default async function DetectionDetailsPage({
             {isCase
               ? `Caso ${formatPublicId(detection.casePublicId)} / `
               : ""}
-            Ocorrencia {formatPublicId(detection.publicId)} / Imagem{" "}
+            Ocorrência {formatPublicId(detection.publicId)} / Imagem{" "}
             {formatPublicId(detection.asset.publicId)}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={getDetectionStatusVariant(detection.incident.incidentStatus)}>
             {formatDetectionStatus(detection.incident.incidentStatus)}
-          </Badge>
-          <Badge variant={getEvidenceCoverageVariant(detection.incident.evidenceCoverage)}>
-            {formatEvidenceCoverage(detection.incident.evidenceCoverage)}
           </Badge>
         </div>
       </header>
@@ -149,17 +119,17 @@ export default async function DetectionDetailsPage({
               title="Imagem original"
               imageUrl={detection.asset.primaryImageUrl}
               alt={detection.asset.title}
-              fallback="A imagem principal ainda nao possui preview disponivel."
+              fallback="A imagem principal ainda não possui preview disponível."
             />
             <ImagePanel
               title="Imagem encontrada"
               imageUrl={matchedImageUrl}
-              alt={`Imagem encontrada para a ocorrencia ${detection.id}`}
-              fallback="A imagem encontrada ainda nao foi preservada pelo worker."
+              alt={`Imagem encontrada para a ocorrência ${detection.id}`}
+              fallback="A imagem encontrada ainda não foi preservada pelo worker."
             />
           </div>
 
-          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+          <section className="rounded-lg border border-border bg-card p-4 ">
             <DetectionDetailsTabs
               detectionId={detection.id}
               currentSourceUrl={detection.sourceUrl}
@@ -175,102 +145,11 @@ export default async function DetectionDetailsPage({
         </main>
 
         <aside className="space-y-4">
-          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <h2 className="font-heading text-xl font-semibold tracking-tight">
-              Decisao do grupo
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              A decisao abaixo vale para esta imagem neste dominio.
-            </p>
-            <div className="mt-4 grid gap-2">
-              <DecisionButton
-                detectionId={detection.id}
-                nextStatus="ignored"
-                label="Nao e a mesma imagem"
-                reason="not_same_image"
-              />
-              <DecisionButton
-                detectionId={detection.id}
-                nextStatus="authorized"
-                label="Uso autorizado"
-              />
-              <DecisionButton
-                detectionId={detection.id}
-                nextStatus="unauthorized"
-                label="Uso nao autorizado"
-                variant="default"
-              />
-              <DecisionButton
-                detectionId={detection.id}
-                nextStatus="pending"
-                label="Revisar depois"
-              />
-            </div>
-          </section>
-
-          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <h2 className="font-heading text-xl font-semibold tracking-tight">
-              Site autorizado
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              A lista de dominios autorizados entra em uma proxima etapa. Por enquanto,
-              marque o grupo como uso autorizado.
-            </p>
-            <Button className="mt-4 w-full" disabled size="sm" variant="outline">
-              Adicionar dominio autorizado
-            </Button>
-          </section>
-
-          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <h2 className="font-heading text-xl font-semibold tracking-tight">
-              Contexto
-            </h2>
-            <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-[0.16em]">
-                  Imagem
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatPublicId(detection.asset.publicId)}
-                </p>
-                <Link
-                  href="/gallery"
-                  className="mt-1 block text-foreground underline underline-offset-4"
-                >
-                  {detection.asset.title}
-                </Link>
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-[0.16em]">
-                  {isCase ? "Caso / ocorrencia" : "Ocorrencia"}
-                </p>
-                <p className="mt-1 text-foreground">
-                  {isCase
-                    ? `${formatPublicId(detection.casePublicId)} / `
-                    : ""}
-                  {formatPublicId(detection.publicId)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-[0.16em]">
-                  Dominio
-                </p>
-                <p className="mt-1 break-all text-foreground">
-                  {formatDomain(detection.incident.domain)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-[0.16em]">
-                  Ultimo achado
-                </p>
-                <p className="mt-1 text-foreground">{formatDate(detection.lastSeenAt)}</p>
-              </div>
-              <Button asChild className="w-full" size="sm" variant="outline">
-                <a href={detection.sourceUrl} target="_blank" rel="noreferrer">
-                  Abrir pagina encontrada
-                </a>
-              </Button>
-            </div>
+          <section className="rounded-lg border border-border bg-card p-4 ">
+            <IncidentActionsPanel
+              detectionId={detection.id}
+              currentStatus={detection.incident.incidentStatus}
+            />
           </section>
         </aside>
       </div>

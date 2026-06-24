@@ -118,7 +118,7 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
         </div>
       </header>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-3 py-3 shadow-sm">
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-3 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Status
@@ -166,7 +166,7 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
       />
 
       {incidents.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-card/60 p-8 text-center shadow-sm">
+        <div className="rounded-lg border border-dashed border-border bg-card/60 p-8 text-center ">
           <h2 className="font-heading text-xl font-semibold tracking-tight">
             Nenhuma ocorrencia neste recorte
           </h2>
@@ -175,7 +175,7 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
           <div className="hidden grid-cols-[90px_minmax(220px,1.4fr)_minmax(160px,1fr)_110px_130px_140px_110px] gap-3 border-b border-border bg-muted/30 px-4 py-3 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground xl:grid">
             <span>ID</span>
             <span>Obra</span>
