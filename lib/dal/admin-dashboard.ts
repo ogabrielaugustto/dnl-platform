@@ -1,11 +1,17 @@
 import "server-only";
 
+import {
+  buildClientDashboardUsers,
+  getClientDashboardUserIds,
+  type ClientDashboardUser,
+} from "@/lib/dal/admin-dashboard-helpers";
 import { requirePanelAccess } from "@/lib/auth";
 import { createClient } from "@/lib/server";
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const CHART_WINDOW_DAYS = 90;
 const COMPARISON_WINDOW_DAYS = 30;
+const RECENT_CLIENT_USERS_FETCH_LIMIT = 60;
 
 type OrganizationRow = {
   id: string;
@@ -52,6 +58,7 @@ type ProfileRow = {
 type OrganizationMemberRow = {
   user_id: string;
   role: "owner" | "admin" | "member";
+  is_active: boolean;
   organizations: {
     name: string;
   } | null;
@@ -96,16 +103,7 @@ export type AdminDashboardDetectionRow = {
   lastSeenAt: string;
 };
 
-export type AdminDashboardUserRow = {
-  id: string;
-  fullName: string | null;
-  email: string | null;
-  organizationName: string | null;
-  membershipRole: "owner" | "admin" | "member" | null;
-  systemRole: "user" | "admin" | "super_admin";
-  createdAt: string;
-  lastSignedInAt: string | null;
-};
+export type AdminDashboardUserRow = ClientDashboardUser;
 
 export type AdminDashboardData = {
   metrics: AdminDashboardMetric[];
@@ -309,11 +307,11 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       .from("profiles")
       .select("id, email, full_name, system_role, created_at, last_signed_in_at")
       .order("created_at", { ascending: false })
-      .limit(12)
+      .limit(RECENT_CLIENT_USERS_FETCH_LIMIT)
       .returns<ProfileRow[]>(),
     supabase
       .from("profiles")
-      .select("id, created_at")
+      .select("id, created_at, system_role")
       .gte("created_at", previousWindowStart.toISOString())
       .limit(5000),
   ]);
@@ -353,16 +351,22 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const assetIds = Array.from(
     new Set(Array.from(detectionsById.values()).map((item) => item.asset_id)),
   );
+  const dashboardProfileIds = Array.from(
+    new Set([
+      ...recentProfiles.map((profile) => profile.id),
+      ...profileStatsRows.map((profile) => profile.id),
+    ]),
+  );
   const [assetsById, recentMembershipsResponse] = await Promise.all([
     listAssetsById(assetIds),
-    recentProfiles.length > 0
+    dashboardProfileIds.length > 0
       ? supabase
           .from("organization_members")
-          .select("user_id, role, organizations(name)")
+          .select("user_id, role, is_active, organizations(name)")
           .eq("is_active", true)
           .in(
             "user_id",
-            recentProfiles.map((profile) => profile.id),
+            dashboardProfileIds,
           )
           .order("created_at", { ascending: true })
           .returns<OrganizationMemberRow[]>()
@@ -379,13 +383,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const organizationNames = new Map(
     organizations.map((organization) => [organization.id, organization.name]),
   );
-  const membershipsByUserId = new Map<string, OrganizationMemberRow>();
-
-  for (const membership of recentMembershipsResponse.data ?? []) {
-    if (!membershipsByUserId.has(membership.user_id)) {
-      membershipsByUserId.set(membership.user_id, membership);
-    }
-  }
+  const dashboardMemberships = recentMembershipsResponse.data ?? [];
 
   const chartBuckets = buildChartBuckets(chartWindowStart);
   for (const row of detectionStatsRows) {
@@ -433,11 +431,19 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     }
   }
 
-  const usersCurrent = profileStatsRows.filter((row) =>
-    isWithinWindow(row.created_at, currentWindowStart, now),
+  const clientDashboardUserIds = getClientDashboardUserIds(
+    profileStatsRows as Array<Pick<ProfileRow, "id" | "system_role" | "created_at">>,
+    dashboardMemberships,
+  );
+  const usersCurrent = profileStatsRows.filter(
+    (row) =>
+      clientDashboardUserIds.has(row.id) &&
+      isWithinWindow(row.created_at, currentWindowStart, now),
   ).length;
-  const usersPrevious = profileStatsRows.filter((row) =>
-    isWithinWindow(row.created_at, previousWindowStart, currentWindowStart),
+  const usersPrevious = profileStatsRows.filter(
+    (row) =>
+      clientDashboardUserIds.has(row.id) &&
+      isWithinWindow(row.created_at, previousWindowStart, currentWindowStart),
   ).length;
   const detectionsCurrent = detectionStatsRows.filter((row) =>
     isWithinWindow(row.created_at, currentWindowStart, now),
@@ -534,20 +540,10 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       };
     });
 
-  const users: AdminDashboardUserRow[] = recentProfiles.map((profile) => {
-    const membership = membershipsByUserId.get(profile.id);
-
-    return {
-      id: profile.id,
-      fullName: profile.full_name,
-      email: profile.email,
-      organizationName: membership?.organizations?.name ?? null,
-      membershipRole: membership?.role ?? null,
-      systemRole: profile.system_role,
-      createdAt: profile.created_at,
-      lastSignedInAt: profile.last_signed_in_at,
-    };
-  });
+  const users: AdminDashboardUserRow[] = buildClientDashboardUsers(
+    recentProfiles,
+    dashboardMemberships,
+  ).slice(0, 12);
 
   return {
     metrics,

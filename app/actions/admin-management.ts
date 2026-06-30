@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { recordAdminActivity } from "@/lib/admin-activity";
 import { requirePanelAccess } from "@/lib/auth";
-import { getAppUrl, sendPasswordRecoveryEmail } from "@/lib/email/service";
+import { buildSupabaseAuthConfirmUrl } from "@/lib/email/links";
+import {
+  getAppUrl,
+  sendPasswordRecoveryEmail,
+  sendWelcomeEmail,
+} from "@/lib/email/service";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type AdminManagementActionState = {
@@ -67,6 +72,35 @@ function getMutationErrorMessage(error: unknown, fallback: string) {
 
   const candidate = error as { message?: string };
   return candidate.message ?? fallback;
+}
+
+async function safelySendManagedUserWelcomeEmail({
+  email,
+  fullName,
+  actionLabel,
+  actionUrl,
+  accessContext,
+  isFirstAccess,
+}: {
+  email: string;
+  fullName: string;
+  actionLabel: string;
+  actionUrl: string;
+  accessContext?: string;
+  isFirstAccess: boolean;
+}) {
+  try {
+    await sendWelcomeEmail({
+      to: email,
+      fullName,
+      actionLabel,
+      actionUrl,
+      accessContext,
+      isFirstAccess,
+    });
+  } catch (error) {
+    console.error("managed_welcome_email_failed", error);
+  }
 }
 
 function revalidateAdminManagementPaths() {
@@ -181,9 +215,19 @@ export async function inviteAdminUserAction(
 
   let userId = existingProfile?.id ?? null;
   let wasInvitedNow = false;
+  let welcomeEmailPayload:
+    | {
+        actionLabel: string;
+        actionUrl: string;
+        accessContext?: string;
+        isFirstAccess: boolean;
+      }
+    | null = null;
   let generatedPassword: string | null = null;
 
   if (!userId) {
+    const appUrl = getAppUrl();
+
     if (parsed.data.accessType === "internal" && !parsed.data.sendInvite) {
       generatedPassword = `Dnl@${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
       const createResponse = await admin.auth.admin.createUser({
@@ -207,13 +251,20 @@ export async function inviteAdminUserAction(
       }
 
       userId = createResponse.data.user.id;
+      welcomeEmailPayload = {
+        actionLabel: "Entrar na plataforma",
+        actionUrl: `${appUrl}/auth/login`,
+        accessContext:
+          "Use a senha temporaria compartilhada pela equipe da Direito na Lente para concluir o primeiro acesso.",
+        isFirstAccess: false,
+      };
     } else {
-      const appUrl = getAppUrl();
-      const inviteResponse = await admin.auth.admin.inviteUserByEmail(normalizedEmail, {
-        data: {
-          full_name: parsed.data.fullName,
+      const inviteResponse = await admin.auth.admin.generateLink({
+        type: "invite",
+        email: normalizedEmail,
+        options: {
+          redirectTo: `${appUrl}/auth/login`,
         },
-        redirectTo: `${appUrl}/auth/login`,
       });
 
       if (inviteResponse.error || !inviteResponse.data.user) {
@@ -229,6 +280,28 @@ export async function inviteAdminUserAction(
 
       userId = inviteResponse.data.user.id;
       wasInvitedNow = true;
+      const inviteActionUrl = inviteResponse.data.properties.action_link;
+      const inviteHashedToken = inviteResponse.data.properties.hashed_token;
+
+      if (!inviteActionUrl && !inviteHashedToken) {
+        return {
+          status: "error",
+          message: "Nao foi possivel preparar o primeiro acesso deste usuario agora.",
+        };
+      }
+
+      welcomeEmailPayload = {
+        actionLabel: "Definir acesso",
+        actionUrl:
+          inviteActionUrl ??
+          buildSupabaseAuthConfirmUrl({
+            appUrl,
+            hashedToken: inviteHashedToken ?? "",
+            nextPath: "/auth/login",
+            type: "invite",
+          }),
+        isFirstAccess: true,
+      };
     }
   }
 
@@ -268,6 +341,14 @@ export async function inviteAdminUserAction(
         message: "Nao foi possivel vincular este usuario a organizacao selecionada.",
       };
     }
+  }
+
+  if (welcomeEmailPayload) {
+    await safelySendManagedUserWelcomeEmail({
+      email: normalizedEmail,
+      fullName: parsed.data.fullName,
+      ...welcomeEmailPayload,
+    });
   }
 
   await recordAdminActivity({
@@ -466,7 +547,12 @@ export async function sendAdminUserPasswordResetAction(
     }
 
     if (data.properties.hashed_token) {
-      const recoveryUrl = `${appUrl}/auth/confirm?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery&next=${encodeURIComponent("/auth/reset-password")}`;
+      const recoveryUrl = buildSupabaseAuthConfirmUrl({
+        appUrl,
+        hashedToken: data.properties.hashed_token,
+        nextPath: "/auth/reset-password",
+        type: "recovery",
+      });
 
       await sendPasswordRecoveryEmail({
         to: target.profile.email,

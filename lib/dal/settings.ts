@@ -1,6 +1,11 @@
 import "server-only";
 
 import { requirePanelAccess, type OrganizationMemberRole } from "@/lib/auth";
+import type { SignatureInputMode } from "@/lib/signature";
+import {
+  hasMissingProfileSignatureFieldsError,
+  normalizeProfileSignature,
+} from "@/lib/profile-signature";
 import { createClient } from "@/lib/server";
 
 type ProfileSettingsRow = {
@@ -9,6 +14,11 @@ type ProfileSettingsRow = {
   full_name: string | null;
   avatar_url: string | null;
   last_signed_in_at: string | null;
+  signature_mode: SignatureInputMode | null;
+  signature_payload: unknown;
+  signature_signed_name: string | null;
+  signature_svg: string | null;
+  signature_updated_at: string | null;
   created_at: string;
 };
 
@@ -32,6 +42,15 @@ export type ProfileSettingsData = {
   fullName: string | null;
   avatarUrl: string | null;
   lastSignedInAt: string | null;
+  signature:
+    | {
+        mode: SignatureInputMode;
+        payloadJson: string;
+        signedName: string;
+        svg: string;
+        updatedAt: string;
+      }
+    | null;
   createdAt: string;
 };
 
@@ -143,13 +162,51 @@ export async function requireManageableOrganization() {
 export async function getProfileSettingsData(): Promise<ProfileSettingsData> {
   const context = await requirePanelAccess("client");
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const profileResponse = await supabase
     .from("profiles")
-    .select("id, email, full_name, avatar_url, last_signed_in_at, created_at")
+    .select(
+      "id, email, full_name, avatar_url, last_signed_in_at, signature_mode, signature_payload, signature_signed_name, signature_svg, signature_updated_at, created_at",
+    )
     .eq("id", context.userId)
     .maybeSingle<ProfileSettingsRow>();
 
-  if (error || !data) {
+  let data = profileResponse.data;
+
+  if (profileResponse.error && hasMissingProfileSignatureFieldsError(profileResponse.error)) {
+    const fallback = await supabase
+      .from("profiles")
+      .select("id, email, full_name, avatar_url, last_signed_in_at, created_at")
+      .eq("id", context.userId)
+      .maybeSingle<
+        Omit<
+          ProfileSettingsRow,
+          | "signature_mode"
+          | "signature_payload"
+          | "signature_signed_name"
+          | "signature_svg"
+          | "signature_updated_at"
+        >
+      >();
+
+    if (fallback.error) {
+      throw new Error("Nao foi possivel carregar os dados do perfil.");
+    }
+
+    data = fallback.data
+      ? {
+          ...fallback.data,
+          signature_mode: null,
+          signature_payload: null,
+          signature_signed_name: null,
+          signature_svg: null,
+          signature_updated_at: null,
+        }
+      : null;
+  } else if (profileResponse.error || !data) {
+    throw new Error("Nao foi possivel carregar os dados do perfil.");
+  }
+
+  if (!data) {
     throw new Error("Nao foi possivel carregar os dados do perfil.");
   }
 
@@ -159,6 +216,7 @@ export async function getProfileSettingsData(): Promise<ProfileSettingsData> {
     fullName: data.full_name,
     avatarUrl: data.avatar_url,
     lastSignedInAt: data.last_signed_in_at,
+    signature: normalizeProfileSignature(data),
     createdAt: data.created_at,
   };
 }

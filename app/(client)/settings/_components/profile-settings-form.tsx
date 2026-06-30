@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { updateProfileSettingsAction, type SettingsActionState } from "@/app/actions/settings";
+import { ClientSignatureField } from "@/components/signature/client-signature-field";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -20,6 +21,13 @@ type ProfileSettingsFormProps = {
     avatarUrl: string | null;
     email: string | null;
     fullName: string | null;
+    signature:
+      | {
+          payloadJson: string;
+          signedName: string;
+          updatedAt: string;
+        }
+      | null;
   };
 };
 
@@ -76,6 +84,15 @@ export function ProfileSettingsForm({ defaultValues }: ProfileSettingsFormProps)
             <FieldError errors={state.fieldErrors?.avatarUrl?.map((message) => ({ message }))} />
           </FieldContent>
         </Field>
+
+        <ClientSignatureField
+          defaultPayloadJson={defaultValues.signature?.payloadJson}
+          defaultSignedName={defaultValues.signature?.signedName}
+          description="Essa assinatura fica salva no seu perfil para reaproveitar depois em termos, contratos e PDFs gerados pela plataforma."
+          suggestedSignedName={defaultValues.fullName}
+          title="Assinatura salva"
+        />
+        <FieldError errors={state.fieldErrors?.signature?.map((message) => ({ message }))} />
       </FieldGroup>
 
       {state.message ? (

@@ -8,6 +8,7 @@ import {
   sendPasswordRecoveryEmail,
   sendWelcomeEmail,
 } from "@/lib/email/service";
+import { buildSupabaseAuthConfirmUrl } from "@/lib/email/links";
 import { createClient } from "@/lib/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -24,6 +25,8 @@ import {
   getPendingSignupOnboarding,
   setPendingSignupOnboarding,
 } from "@/lib/signup-onboarding";
+import { hasMissingProfileSignatureFieldsError } from "@/lib/profile-signature";
+import { createSignatureRecord, parseSignaturePayloadJson } from "@/lib/signature";
 
 type AuthActionState = {
   message?: string;
@@ -200,14 +203,26 @@ async function ensureCustomerWorkspace(
 async function safelySendWelcomeEmail({
   email,
   fullName,
+  actionLabel,
+  actionUrl,
+  accessContext,
+  isFirstAccess,
 }: {
   email: string;
   fullName: string;
+  actionLabel?: string;
+  actionUrl?: string;
+  accessContext?: string;
+  isFirstAccess?: boolean;
 }) {
   try {
     await sendWelcomeEmail({
       to: email,
       fullName,
+      actionLabel,
+      actionUrl,
+      accessContext,
+      isFirstAccess,
     });
   } catch (error) {
     console.error("welcome_email_failed", error);
@@ -248,6 +263,11 @@ function getPanelRedirect(panel: AppPanel, context: AuthContext): string {
   }
 
   return getDefaultPanelPath(context);
+}
+
+function parseSignatureFromFormData(formData: FormData) {
+  const signaturePayload = parseSignaturePayloadJson(formData.get("signaturePayload"));
+  return createSignatureRecord(signaturePayload);
 }
 
 export async function loginAction(
@@ -489,7 +509,6 @@ export async function completeCustomerOnboardingAction(
   formData: FormData,
 ): Promise<AuthActionState> {
   void currentState;
-  void formData;
 
   const pendingOnboarding = await getPendingSignupOnboarding();
 
@@ -498,6 +517,15 @@ export async function completeCustomerOnboardingAction(
       status: "error",
       message:
         "Não encontramos o onboarding pendente desta conta. Refaça o cadastro ou entre novamente para continuar.",
+    };
+  }
+
+  const signatureResult = parseSignatureFromFormData(formData);
+
+  if (!signatureResult.ok) {
+    return {
+      status: "error",
+      message: signatureResult.message,
     };
   }
 
@@ -535,6 +563,71 @@ export async function completeCustomerOnboardingAction(
   const userAgent = requestHeaders.get("user-agent");
   const existingMetadata = authUserResponse.user.user_metadata ?? {};
 
+  const { error: profileUpdateError } = await admin
+    .from("profiles")
+    .update({
+      signature_mode: signatureResult.record.mode,
+      signature_payload: signatureResult.record.payload,
+      signature_signed_name: signatureResult.record.signedName,
+      signature_svg: signatureResult.record.svg,
+      signature_updated_at: acceptedAt,
+    })
+    .eq("id", pendingOnboarding.userId);
+
+  if (profileUpdateError) {
+    if (hasMissingProfileSignatureFieldsError(profileUpdateError)) {
+      return {
+        status: "error",
+        message:
+          "A assinatura ainda nao pode ser salva porque a migration do banco nao foi aplicada no Supabase.",
+      };
+    }
+
+    return {
+      status: "error",
+      message:
+        "Nao foi possivel salvar a assinatura da conta agora. Tente novamente em instantes.",
+    };
+  }
+
+  const organizationId =
+    user?.id === pendingOnboarding.userId
+      ? (await getActionContextFresh())?.membership?.organizationId ?? null
+      : await getOnboardingOrganizationId(pendingOnboarding.userId);
+
+  const { error: auditError } = await admin.from("audit_logs").insert({
+    action: "authorization_terms_accepted",
+    entity: "customer_onboarding",
+    metadata: {
+      accepted_at: acceptedAt,
+      authorization_terms_title:
+        "Termo de Autorização para Monitoramento e Declaração de Titularidade",
+      authorization_terms_version: AUTHORIZATION_TERMS_VERSION,
+      customer_onboarding_flow_version: pendingOnboarding.flowVersion,
+      ip_address: ipAddress,
+      organization_name: pendingOnboarding.organizationName,
+      signature_mode: signatureResult.record.mode,
+      signature_signed_name: signatureResult.record.signedName,
+      signature_svg: signatureResult.record.svg,
+      registration_terms_accepted_at:
+        pendingOnboarding.registrationTermsAcceptedAt,
+      registration_terms_version: REGISTRATION_TERMS_VERSION,
+      requires_email_confirmation:
+        pendingOnboarding.requiresEmailConfirmation,
+      user_agent: userAgent,
+    },
+    organization_id: organizationId,
+    user_id: pendingOnboarding.userId,
+  });
+
+  if (auditError) {
+    return {
+      status: "error",
+      message:
+        "Não foi possível registrar a trilha do aceite agora. Tente novamente em instantes.",
+    };
+  }
+
   const { error: updateUserError } = await admin.auth.admin.updateUserById(
     pendingOnboarding.userId,
     {
@@ -555,41 +648,6 @@ export async function completeCustomerOnboardingAction(
       status: "error",
       message:
         "Não foi possível salvar o aceite obrigatório agora. Tente novamente em instantes.",
-    };
-  }
-
-  const organizationId =
-    user?.id === pendingOnboarding.userId
-      ? (await getActionContextFresh())?.membership?.organizationId ?? null
-      : await getOnboardingOrganizationId(pendingOnboarding.userId);
-
-  const { error: auditError } = await admin.from("audit_logs").insert({
-    action: "authorization_terms_accepted",
-    entity: "customer_onboarding",
-    metadata: {
-      accepted_at: acceptedAt,
-      authorization_terms_title:
-        "Termo de Autorização para Monitoramento e Declaração de Titularidade",
-      authorization_terms_version: AUTHORIZATION_TERMS_VERSION,
-      customer_onboarding_flow_version: pendingOnboarding.flowVersion,
-      ip_address: ipAddress,
-      organization_name: pendingOnboarding.organizationName,
-      registration_terms_accepted_at:
-        pendingOnboarding.registrationTermsAcceptedAt,
-      registration_terms_version: REGISTRATION_TERMS_VERSION,
-      requires_email_confirmation:
-        pendingOnboarding.requiresEmailConfirmation,
-      user_agent: userAgent,
-    },
-    organization_id: organizationId,
-    user_id: pendingOnboarding.userId,
-  });
-
-  if (auditError) {
-    return {
-      status: "error",
-      message:
-        "Não foi possível registrar a trilha do aceite agora. Tente novamente em instantes.",
     };
   }
 
@@ -661,7 +719,12 @@ export async function requestPasswordResetAction(
     }
 
     if (data.properties.hashed_token) {
-      const recoveryUrl = `${appUrl}/auth/confirm?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery&next=${encodeURIComponent("/auth/reset-password")}`;
+      const recoveryUrl = buildSupabaseAuthConfirmUrl({
+        appUrl,
+        hashedToken: data.properties.hashed_token,
+        nextPath: "/auth/reset-password",
+        type: "recovery",
+      });
 
       await sendPasswordRecoveryEmail({
         to: parsed.data.email,

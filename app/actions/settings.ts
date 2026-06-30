@@ -4,6 +4,8 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { requireManageableOrganization } from "@/lib/dal/settings";
 import { requirePanelAccess } from "@/lib/auth";
+import { hasMissingProfileSignatureFieldsError } from "@/lib/profile-signature";
+import { createSignatureRecord, parseSignaturePayloadJson } from "@/lib/signature";
 import { createClient } from "@/lib/server";
 
 type FieldErrors = Record<string, string[] | undefined>;
@@ -124,6 +126,11 @@ function buildValidationErrorState(error: z.ZodError): SettingsActionState {
   };
 }
 
+function parseSignatureFromFormData(formData: FormData) {
+  const signaturePayload = parseSignaturePayloadJson(formData.get("signaturePayload"));
+  return createSignatureRecord(signaturePayload);
+}
+
 function hasMissingOrganizationFieldsError(error: unknown) {
   if (!error || typeof error !== "object") {
     return false;
@@ -158,6 +165,18 @@ export async function updateProfileSettingsAction(
     return buildValidationErrorState(parsed.error);
   }
 
+  const signatureResult = parseSignatureFromFormData(formData);
+
+  if (!signatureResult.ok) {
+    return {
+      status: "error",
+      message: signatureResult.message,
+      fieldErrors: {
+        signature: [signatureResult.message],
+      },
+    };
+  }
+
   const context = await requirePanelAccess("client");
   const supabase = await createClient();
   const { error } = await supabase
@@ -165,10 +184,23 @@ export async function updateProfileSettingsAction(
     .update({
       full_name: parsed.data.fullName,
       avatar_url: normalizeOptionalValue(parsed.data.avatarUrl),
+      signature_mode: signatureResult.record.mode,
+      signature_payload: signatureResult.record.payload,
+      signature_signed_name: signatureResult.record.signedName,
+      signature_svg: signatureResult.record.svg,
+      signature_updated_at: new Date().toISOString(),
     })
     .eq("id", context.userId);
 
   if (error) {
+    if (hasMissingProfileSignatureFieldsError(error)) {
+      return {
+        status: "error",
+        message:
+          "A assinatura ainda nao pode ser salva porque a migration do banco nao foi aplicada no Supabase.",
+      };
+    }
+
     return {
       status: "error",
       message: "Nao foi possivel atualizar o perfil agora.",
@@ -180,6 +212,58 @@ export async function updateProfileSettingsAction(
   return {
     status: "success",
     message: "Perfil atualizado com sucesso.",
+  };
+}
+
+export async function saveClientSignatureAction(
+  _: SettingsActionState,
+  formData: FormData,
+): Promise<SettingsActionState> {
+  const signatureResult = parseSignatureFromFormData(formData);
+
+  if (!signatureResult.ok) {
+    return {
+      status: "error",
+      message: signatureResult.message,
+      fieldErrors: {
+        signature: [signatureResult.message],
+      },
+    };
+  }
+
+  const context = await requirePanelAccess("client");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      signature_mode: signatureResult.record.mode,
+      signature_payload: signatureResult.record.payload,
+      signature_signed_name: signatureResult.record.signedName,
+      signature_svg: signatureResult.record.svg,
+      signature_updated_at: new Date().toISOString(),
+    })
+    .eq("id", context.userId);
+
+  if (error) {
+    if (hasMissingProfileSignatureFieldsError(error)) {
+      return {
+        status: "error",
+        message:
+          "A assinatura ainda nao pode ser salva porque a migration do banco nao foi aplicada no Supabase.",
+      };
+    }
+
+    return {
+      status: "error",
+      message: "Nao foi possivel salvar a assinatura agora.",
+    };
+  }
+
+  refresh();
+
+  return {
+    status: "success",
+    message: "Assinatura salva com sucesso.",
   };
 }
 

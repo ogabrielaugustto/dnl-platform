@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ClientSignatureField } from "@/components/signature/client-signature-field";
 
 type SignupOnboardingDialogProps = {
   onboarding: {
@@ -83,6 +84,7 @@ export function SignupOnboardingDialog({
   const [step, setStep] = useState<"welcome" | "terms">("welcome");
   const [hasReachedEnd, setHasReachedEnd] = useState(false);
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+  const [hasValidSignature, setHasValidSignature] = useState(false);
   const [state, formAction, pending] = useActionState(
     completeCustomerOnboardingAction,
     dialogInitialState,
@@ -119,7 +121,8 @@ export function SignupOnboardingDialog({
     return null;
   }
 
-  const canSubmit = hasReachedEnd && hasAcceptedTerms && !pending;
+  const canSubmit =
+    hasReachedEnd && hasAcceptedTerms && hasValidSignature && !pending;
 
   return (
     <Dialog
@@ -272,7 +275,8 @@ export function SignupOnboardingDialog({
 
               <div className="mt-4 rounded-2xl border border-dashed border-primary/25 bg-primary/5 p-4 text-sm leading-6 text-muted-foreground">
                 Para avançar, role o texto até o final. O botão só será
-                liberado quando a leitura chegar ao fim.
+                liberado quando a leitura chegar ao fim e a assinatura estiver
+                configurada.
               </div>
 
               {state.message ? (
@@ -320,6 +324,13 @@ export function SignupOnboardingDialog({
                     </Link>{" "}
                     da plataforma.
                   </div>
+
+                  <ClientSignatureField
+                    description="Crie a assinatura que será vinculada a este termo e poderá ser reutilizada depois em contratos, PDFs e documentos da plataforma."
+                    onValidityChange={setHasValidSignature}
+                    suggestedSignedName={onboarding.fullName}
+                    title="Assinatura do titular da conta"
+                  />
                 </div>
               </div>
 
@@ -341,7 +352,9 @@ export function SignupOnboardingDialog({
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm leading-6 text-muted-foreground">
                     {hasReachedEnd
-                      ? "Leitura concluída. Você já pode confirmar o aceite."
+                      ? hasValidSignature
+                        ? "Leitura e assinatura concluídas. Você já pode confirmar o aceite."
+                        : "Leitura concluída. Falta configurar a assinatura para continuar."
                       : "Role até o final do texto para liberar a confirmação."}
                   </p>
                   <Button className="min-w-48" disabled={!canSubmit} type="submit">

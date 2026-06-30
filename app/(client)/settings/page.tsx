@@ -51,6 +51,7 @@ export default async function SettingsPage() {
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <p className="font-medium text-foreground">{profile.fullName ?? "Sem nome definido"}</p>
               <p>{profile.email ?? "Sem e-mail"}</p>
+              <p>{profile.signature ? "Assinatura configurada" : "Assinatura pendente"}</p>
             </CardContent>
             <CardFooter>
               <Button asChild variant="outline">

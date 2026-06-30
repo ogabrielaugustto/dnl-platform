@@ -6,8 +6,11 @@ type EmailContent = {
 
 type WelcomeEmailParams = {
   fullName: string;
+  actionLabel: string;
+  actionUrl: string;
+  accessContext?: string;
   dashboardUrl: string;
-  loginUrl: string;
+  isFirstAccess: boolean;
 };
 
 type PasswordRecoveryEmailParams = {
@@ -49,7 +52,7 @@ function createEmailLayout({
   const actionMarkup =
     actionLabel && actionUrl
       ? `<p style="margin:32px 0 0;">
-          <a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:999px;font-weight:600;">
+          <a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#eff6ff;text-decoration:none;padding:14px 22px;border-radius:999px;font-weight:700;box-shadow:0 14px 28px rgba(37,99,235,0.28);">
             ${escapeHtml(actionLabel)}
           </a>
         </p>`
@@ -61,11 +64,11 @@ function createEmailLayout({
 
   return `<!doctype html>
 <html lang="pt-BR">
-  <body style="margin:0;background:#f8f4ea;font-family:Arial,sans-serif;color:#0f172a;">
+  <body style="margin:0;background:#f4f7fb;font-family:Arial,sans-serif;color:#0f172a;">
     <div style="padding:32px 16px;">
-      <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:28px;overflow:hidden;border:1px solid rgba(15,23,42,0.08);box-shadow:0 20px 60px rgba(15,23,42,0.08);">
-        <div style="padding:24px 28px;background:linear-gradient(135deg,#0f172a,#1e293b);color:#ffffff;">
-          <p style="margin:0 0 10px;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;color:rgba(255,255,255,0.72);">
+      <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:28px;overflow:hidden;border:1px solid rgba(37,99,235,0.1);box-shadow:0 24px 70px rgba(15,23,42,0.08);">
+        <div style="padding:28px;background:radial-gradient(circle at top left,rgba(147,197,253,0.9),transparent 30%),linear-gradient(135deg,#0f172a,#162338 55%,#1d4ed8 100%);color:#ffffff;">
+          <p style="margin:0 0 10px;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;color:rgba(239,246,255,0.72);">
             ${escapeHtml(eyebrow)}
           </p>
           <h1 style="margin:0;font-size:28px;line-height:1.2;">${escapeHtml(title)}</h1>
@@ -83,31 +86,46 @@ function createEmailLayout({
 
 export function buildWelcomeEmail({
   fullName,
+  actionLabel,
+  actionUrl,
+  accessContext,
   dashboardUrl,
-  loginUrl,
+  isFirstAccess,
 }: WelcomeEmailParams): EmailContent {
   const safeName = escapeHtml(fullName);
+  const contextMarkup = accessContext
+    ? `<div style="margin:18px 0 0;padding:16px 18px;border-radius:20px;background:#eff6ff;border:1px solid rgba(37,99,235,0.12);color:#1e3a8a;">
+        ${escapeHtml(accessContext)}
+      </div>`
+    : "";
+  const title = isFirstAccess
+    ? "Sua conta ja esta pronta para comecar"
+    : "Seu acesso ja pode ser usado na plataforma";
+  const bodyLead = isFirstAccess
+    ? "Sua conta na Direito na Lente foi criada. A plataforma foi pensada para organizar ativos, acompanhar ocorrencias e apoiar a revisao humana com mais contexto operacional."
+    : "Seu acesso na Direito na Lente foi preparado para acompanhar ativos, varreduras e ocorrencias da sua organizacao em um unico fluxo.";
+  const bodyFollowUp = isFirstAccess
+    ? "Assim que voce entrar, ja pode cadastrar as primeiras imagens e iniciar a estrutura de monitoramento da sua organizacao."
+    : "Assim que voce entrar, o painel ja estara pronto para continuar o acompanhamento do monitoramento e das revisoes pendentes.";
 
   return {
     subject: "Sua conta na Direito na Lente foi criada",
-    text: `Ola, ${fullName}. Sua conta na Direito na Lente foi criada. Acesse ${loginUrl} para entrar e continuar configurando seu monitoramento. Quando estiver tudo pronto, seu painel ficara disponivel em ${dashboardUrl}.`,
+    text: `Ola, ${fullName}. Sua conta na Direito na Lente foi criada. ${bodyLead} ${accessContext ? `${accessContext} ` : ""}${actionLabel}: ${actionUrl}. Quando quiser acompanhar o painel, ele estara disponivel em ${dashboardUrl}.`,
     html: createEmailLayout({
       eyebrow: "Boas-vindas",
-      title: "Sua conta ja esta pronta para comecar",
+      title,
       body: `
         <p style="margin:0;">Ola, <strong>${safeName}</strong>.</p>
         <p style="margin:16px 0 0;">
-          Sua conta na Direito na Lente foi criada. A plataforma foi pensada para
-          organizar ativos, acompanhar ocorrencias e apoiar a revisao humana com
-          mais contexto operacional.
+          ${bodyLead}
         </p>
         <p style="margin:16px 0 0;">
-          Assim que voce entrar, ja pode cadastrar as primeiras imagens e iniciar
-          a estrutura de monitoramento da sua organizacao.
+          ${bodyFollowUp}
         </p>
+        ${contextMarkup}
       `,
-      actionLabel: "Entrar na plataforma",
-      actionUrl: loginUrl,
+      actionLabel,
+      actionUrl,
       note: `Depois do primeiro acesso, voce tambem podera acompanhar o painel em ${dashboardUrl}.`,
     }),
   };

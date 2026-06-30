@@ -13,7 +13,7 @@ const resendEnvSchema = z.object({
   RESEND_FROM_EMAIL: z.email(),
   RESEND_REPLY_TO_EMAIL: z.email().optional(),
   CONTACT_INBOX_EMAIL: z.email().optional(),
-  APP_URL: z.url(),
+  NEXT_PUBLIC_URL: z.url(),
 });
 
 let resendClient: Resend | null = null;
@@ -61,21 +61,32 @@ async function sendEmail({
 }
 
 export function getAppUrl() {
-  return getResendEnv().APP_URL.replace(/\/$/, "");
+  return getResendEnv().NEXT_PUBLIC_URL.replace(/\/$/, "");
 }
 
 export async function sendWelcomeEmail({
   to,
   fullName,
+  actionLabel = "Entrar na plataforma",
+  actionUrl,
+  accessContext,
+  isFirstAccess = true,
 }: {
   to: string;
   fullName: string;
+  actionLabel?: string;
+  actionUrl?: string;
+  accessContext?: string;
+  isFirstAccess?: boolean;
 }) {
   const appUrl = getAppUrl();
   const email = buildWelcomeEmail({
     fullName,
+    actionLabel,
+    actionUrl: actionUrl ?? `${appUrl}/auth/login`,
+    accessContext,
     dashboardUrl: `${appUrl}/dashboard`,
-    loginUrl: `${appUrl}/auth/login`,
+    isFirstAccess,
   });
 
   await sendEmail({

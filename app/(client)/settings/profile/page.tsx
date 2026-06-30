@@ -30,8 +30,8 @@ export default async function ProfileSettingsPage() {
           <CardHeader>
             <CardTitle>Perfil</CardTitle>
             <CardDescription>
-              Atualize os dados da pessoa que acessa o painel. Essas informacoes aparecem na
-              navegacao e ajudam a identificar quem esta operando a conta.
+              Atualize os dados da pessoa que acessa o painel e mantenha a assinatura pronta
+              para reaproveitar em termos, contratos e documentos da plataforma.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -40,6 +40,13 @@ export default async function ProfileSettingsPage() {
                 avatarUrl: profile.avatarUrl,
                 email: profile.email,
                 fullName: profile.fullName,
+                signature: profile.signature
+                  ? {
+                      payloadJson: profile.signature.payloadJson,
+                      signedName: profile.signature.signedName,
+                      updatedAt: profile.signature.updatedAt,
+                    }
+                  : null,
               }}
             />
           </CardContent>
@@ -62,6 +69,14 @@ export default async function ProfileSettingsPage() {
             <div>
               <p className="text-muted-foreground">Conta criada em</p>
               <p className="font-medium">{formatDateTime(profile.createdAt)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Assinatura</p>
+              <p className="font-medium">
+                {profile.signature
+                  ? `Configurada em ${formatDateTime(profile.signature.updatedAt)}`
+                  : "Ainda nao configurada"}
+              </p>
             </div>
           </CardContent>
         </Card>
