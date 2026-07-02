@@ -69,6 +69,22 @@ type DetectionActionRow = {
   created_at: string;
 };
 
+type RightsOwnershipConfirmationRow = {
+  id: string;
+  detection_id: string;
+  asset_public_id: number;
+  case_public_id: number;
+  signer_full_name: string;
+  signer_cpf: string;
+  signer_role: string;
+  signing_city: string;
+  statement_date: string;
+  signature_svg: string;
+  template_version: string;
+  body_snapshot: string;
+  created_at: string;
+};
+
 type ProfileRow = {
   id: string;
   full_name: string | null;
@@ -191,6 +207,22 @@ export type DetectionCaseActionHistoryItem = {
   createdAt: string;
 };
 
+export type DetectionSignedDeclarationItem = {
+  id: string;
+  detectionId: string;
+  assetPublicId: number;
+  casePublicId: number;
+  signerFullName: string;
+  signerCpf: string;
+  signerRole: string;
+  signingCity: string;
+  statementDate: string;
+  signatureSvg: string;
+  templateVersion: string;
+  body: string;
+  createdAt: string;
+};
+
 export type DetectionCaseListItem = {
   key: string;
   publicId: number;
@@ -228,6 +260,8 @@ export type DetectionCaseListItem = {
     notes: string | null;
     reason: string | null;
   } | null;
+  latestSignedDeclaration: DetectionSignedDeclarationItem | null;
+  signedDeclarations: DetectionSignedDeclarationItem[];
   actionHistory: DetectionCaseActionHistoryItem[];
   pages: DetectionIncidentPageGroup[];
   placements: DetectionPlacementListItem[];
@@ -884,7 +918,7 @@ async function buildDetectionCases(filters?: {
   const assetIds = Array.from(new Set(rows.map((row) => row.asset_id)));
   const detectionIds = rows.map((row) => row.id);
 
-  const [assetsById, filesByAssetId, latestEvidenceByDetectionId, actionsResponse] =
+  const [assetsById, filesByAssetId, latestEvidenceByDetectionId, actionsResponse, declarationsResponse] =
     await Promise.all([
       listAssetRowsById(organizationId, assetIds),
       listPrimaryAssetFiles(organizationId, assetIds),
@@ -895,13 +929,23 @@ async function buildDetectionCases(filters?: {
         .eq("organization_id", organizationId)
         .in("detection_id", detectionIds)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("rights_ownership_confirmations")
+        .select(
+          "id, detection_id, asset_public_id, case_public_id, signer_full_name, signer_cpf, signer_role, signing_city, statement_date, signature_svg, template_version, body_snapshot, created_at",
+        )
+        .eq("organization_id", organizationId)
+        .in("detection_id", detectionIds)
+        .order("created_at", { ascending: false }),
     ]);
 
-  if (actionsResponse.error) {
+  if (actionsResponse.error || declarationsResponse.error) {
     throw new Error("Nao foi possivel carregar o historico dos casos.");
   }
 
   const actions = (actionsResponse.data ?? []) as DetectionActionRow[];
+  const declarations =
+    (declarationsResponse.data ?? []) as RightsOwnershipConfirmationRow[];
   const profileIds = uniqueStrings(actions.map((action) => action.user_id));
   const profilesResponse = profileIds.length
     ? await supabase
@@ -918,6 +962,7 @@ async function buildDetectionCases(filters?: {
     ((profilesResponse.data ?? []) as ProfileRow[]).map((profile) => [profile.id, profile]),
   );
   const actionsByDetectionId = new Map<string, DetectionActionRow[]>();
+  const declarationsByDetectionId = new Map<string, DetectionSignedDeclarationItem[]>();
 
   for (const action of actions) {
     const current = actionsByDetectionId.get(action.detection_id) ?? [];
@@ -925,11 +970,32 @@ async function buildDetectionCases(filters?: {
     actionsByDetectionId.set(action.detection_id, current);
   }
 
+  for (const declaration of declarations) {
+    const current = declarationsByDetectionId.get(declaration.detection_id) ?? [];
+    current.push({
+      id: declaration.id,
+      detectionId: declaration.detection_id,
+      assetPublicId: declaration.asset_public_id,
+      casePublicId: declaration.case_public_id,
+      signerFullName: declaration.signer_full_name,
+      signerCpf: declaration.signer_cpf,
+      signerRole: declaration.signer_role,
+      signingCity: declaration.signing_city,
+      statementDate: declaration.statement_date,
+      signatureSvg: declaration.signature_svg,
+      templateVersion: declaration.template_version,
+      body: declaration.body_snapshot,
+      createdAt: declaration.created_at,
+    });
+    declarationsByDetectionId.set(declaration.detection_id, current);
+  }
+
   const groupedCases = new Map<
     number,
     {
       placements: DetectionPlacementListItem[];
       actions: DetectionActionRow[];
+      declarations: DetectionSignedDeclarationItem[];
     }
   >();
 
@@ -943,10 +1009,12 @@ async function buildDetectionCases(filters?: {
     const current = groupedCases.get(row.case_public_id) ?? {
       placements: [],
       actions: [],
+      declarations: [],
     };
 
     current.placements.push(placement);
     current.actions.push(...(actionsByDetectionId.get(row.id) ?? []));
+    current.declarations.push(...(declarationsByDetectionId.get(row.id) ?? []));
     groupedCases.set(row.case_public_id, current);
   }
 
@@ -978,6 +1046,9 @@ async function buildDetectionCases(filters?: {
           } satisfies DetectionCaseActionHistoryItem;
         });
       const latestAction = actionHistory[0] ?? null;
+      const signedDeclarations = [...group.declarations].sort((left, right) =>
+        compareIsoDatesDesc(left.createdAt, right.createdAt),
+      );
 
       return {
         key: `${organizationId}:${casePublicId}`,
@@ -1041,6 +1112,8 @@ async function buildDetectionCases(filters?: {
               reason: latestAction.reason,
             }
           : null,
+        latestSignedDeclaration: signedDeclarations[0] ?? null,
+        signedDeclarations,
         actionHistory,
         pages,
         placements,

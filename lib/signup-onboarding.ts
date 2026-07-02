@@ -1,27 +1,17 @@
-import "server-only";
-
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { z } from "zod";
+import {
+  type PendingSignupOnboarding,
+  pendingSignupOnboardingSchema,
+  PENDING_SIGNUP_ONBOARDING_COOKIE,
+} from "@/lib/pending-signup-onboarding";
 
-export const CUSTOMER_ONBOARDING_FLOW_VERSION = "2026-06-12";
-export const REGISTRATION_TERMS_VERSION = "2026-06-12";
-export const AUTHORIZATION_TERMS_VERSION = "2026-06-12";
-export const PENDING_SIGNUP_ONBOARDING_COOKIE = "dnl_signup_onboarding";
-
-const pendingSignupOnboardingSchema = z.object({
-  userId: z.uuid(),
-  fullName: z.string().min(1),
-  email: z.email(),
-  organizationName: z.string().min(1),
-  requiresEmailConfirmation: z.boolean(),
-  registrationTermsAcceptedAt: z.string().datetime(),
-  flowVersion: z.string().min(1),
-});
-
-export type PendingSignupOnboarding = z.infer<
-  typeof pendingSignupOnboardingSchema
->;
+export {
+  buildPendingSignupOnboardingFromMetadata,
+  CUSTOMER_ONBOARDING_FLOW_VERSION,
+  PENDING_SIGNUP_ONBOARDING_COOKIE,
+  REGISTRATION_TERMS_VERSION,
+} from "@/lib/pending-signup-onboarding";
 
 function getSigningSecret() {
   const secret = process.env.SUPABASE_SECRET_KEY;

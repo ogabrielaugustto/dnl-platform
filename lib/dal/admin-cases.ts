@@ -77,6 +77,22 @@ type DetectionActionRow = {
   created_at: string;
 };
 
+type RightsOwnershipConfirmationRow = {
+  id: string;
+  detection_id: string;
+  asset_public_id: number;
+  case_public_id: number;
+  signer_full_name: string;
+  signer_cpf: string;
+  signer_role: string;
+  signing_city: string;
+  statement_date: string;
+  signature_svg: string;
+  template_version: string;
+  body_snapshot: string;
+  created_at: string;
+};
+
 type ProfileRow = {
   id: string;
   full_name: string | null;
@@ -169,6 +185,22 @@ export type AdminCaseActionHistoryItem = {
   createdAt: string;
 };
 
+export type AdminSignedDeclarationItem = {
+  id: string;
+  detectionId: string;
+  assetPublicId: number;
+  casePublicId: number;
+  signerFullName: string;
+  signerCpf: string;
+  signerRole: string;
+  signingCity: string;
+  statementDate: string;
+  signatureSvg: string;
+  templateVersion: string;
+  body: string;
+  createdAt: string;
+};
+
 export type AdminCaseListItem = {
   key: string;
   publicId: number;
@@ -211,6 +243,8 @@ export type AdminCaseListItem = {
     notes: string | null;
     reason: string | null;
   } | null;
+  latestSignedDeclaration: AdminSignedDeclarationItem | null;
+  signedDeclarations: AdminSignedDeclarationItem[];
   actionHistory: AdminCaseActionHistoryItem[];
   pages: AdminCasePageGroup[];
   placements: AdminCasePlacement[];
@@ -534,6 +568,7 @@ async function buildAdminCases(filters?: {
     { data: files, error: filesError },
     { data: evidences, error: evidencesError },
     { data: actions, error: actionsError },
+    { data: declarations, error: declarationsError },
   ] = await Promise.all([
     supabase
       .from("organizations")
@@ -565,9 +600,24 @@ async function buildAdminCases(filters?: {
       .in("detection_id", detectionIds)
       .order("created_at", { ascending: false })
       .returns<DetectionActionRow[]>(),
+    supabase
+      .from("rights_ownership_confirmations")
+      .select(
+        "id, detection_id, asset_public_id, case_public_id, signer_full_name, signer_cpf, signer_role, signing_city, statement_date, signature_svg, template_version, body_snapshot, created_at",
+      )
+      .in("detection_id", detectionIds)
+      .order("created_at", { ascending: false })
+      .returns<RightsOwnershipConfirmationRow[]>(),
   ]);
 
-  if (organizationsError || assetsError || filesError || evidencesError || actionsError) {
+  if (
+    organizationsError ||
+    assetsError ||
+    filesError ||
+    evidencesError ||
+    actionsError ||
+    declarationsError
+  ) {
     throw new Error("Nao foi possivel consolidar os dados dos casos.");
   }
 
@@ -597,10 +647,31 @@ async function buildAdminCases(filters?: {
   }
 
   const actionsByDetectionId = new Map<string, DetectionActionRow[]>();
+  const declarationsByDetectionId = new Map<string, AdminSignedDeclarationItem[]>();
   for (const action of actions ?? []) {
     const current = actionsByDetectionId.get(action.detection_id) ?? [];
     current.push(action);
     actionsByDetectionId.set(action.detection_id, current);
+  }
+
+  for (const declaration of declarations ?? []) {
+    const current = declarationsByDetectionId.get(declaration.detection_id) ?? [];
+    current.push({
+      id: declaration.id,
+      detectionId: declaration.detection_id,
+      assetPublicId: declaration.asset_public_id,
+      casePublicId: declaration.case_public_id,
+      signerFullName: declaration.signer_full_name,
+      signerCpf: declaration.signer_cpf,
+      signerRole: declaration.signer_role,
+      signingCity: declaration.signing_city,
+      statementDate: declaration.statement_date,
+      signatureSvg: declaration.signature_svg,
+      templateVersion: declaration.template_version,
+      body: declaration.body_snapshot,
+      createdAt: declaration.created_at,
+    });
+    declarationsByDetectionId.set(declaration.detection_id, current);
   }
 
   const groupedCases = new Map<
@@ -610,6 +681,7 @@ async function buildAdminCases(filters?: {
       organization: AdminCaseListItem["organization"];
       placements: AdminCasePlacement[];
       actions: DetectionActionRow[];
+      declarations: AdminSignedDeclarationItem[];
     }
   >();
 
@@ -627,10 +699,12 @@ async function buildAdminCases(filters?: {
       organization: mapped.organization,
       placements: [],
       actions: [],
+      declarations: [],
     };
 
     current.placements.push(mapped.placement);
     current.actions.push(...(actionsByDetectionId.get(row.id) ?? []));
+    current.declarations.push(...(declarationsByDetectionId.get(row.id) ?? []));
     groupedCases.set(caseKey, current);
   }
 
@@ -711,6 +785,9 @@ async function buildAdminCases(filters?: {
           } satisfies AdminCaseActionHistoryItem;
         });
       const latestAction = actionHistory[0] ?? null;
+      const signedDeclarations = [...group.declarations].sort((left, right) =>
+        compareIsoDatesDesc(left.createdAt, right.createdAt),
+      );
 
       return {
         key: caseKey,
@@ -775,6 +852,8 @@ async function buildAdminCases(filters?: {
               reason: latestAction.reason,
             }
           : null,
+        latestSignedDeclaration: signedDeclarations[0] ?? null,
+        signedDeclarations,
         actionHistory,
         pages,
         placements,

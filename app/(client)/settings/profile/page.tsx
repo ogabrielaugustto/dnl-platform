@@ -30,16 +30,19 @@ export default async function ProfileSettingsPage() {
           <CardHeader>
             <CardTitle>Perfil</CardTitle>
             <CardDescription>
-              Atualize os dados da pessoa que acessa o painel e mantenha a assinatura pronta
-              para reaproveitar em termos, contratos e documentos da plataforma.
+              Atualize os dados do signatario principal da conta e mantenha a assinatura
+              pronta para reaproveitar nos documentos gerados pela plataforma.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ProfileSettingsForm
               defaultValues={{
                 avatarUrl: profile.avatarUrl,
+                cpf: profile.cpf,
                 email: profile.email,
                 fullName: profile.fullName,
+                signerRole: profile.signerRole,
+                signingCity: profile.signingCity,
                 signature: profile.signature
                   ? {
                       payloadJson: profile.signature.payloadJson,
@@ -76,6 +79,12 @@ export default async function ProfileSettingsPage() {
                 {profile.signature
                   ? `Configurada em ${formatDateTime(profile.signature.updatedAt)}`
                   : "Ainda nao configurada"}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Cadastro complementar</p>
+              <p className="font-medium">
+                {profile.hasLegalProfile ? "Completo" : "Pendente"}
               </p>
             </div>
           </CardContent>

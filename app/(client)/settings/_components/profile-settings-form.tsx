@@ -19,8 +19,11 @@ const initialState: SettingsActionState = {};
 type ProfileSettingsFormProps = {
   defaultValues: {
     avatarUrl: string | null;
+    cpf: string | null;
     email: string | null;
     fullName: string | null;
+    signerRole: string | null;
+    signingCity: string | null;
     signature:
       | {
           payloadJson: string;
@@ -49,6 +52,57 @@ export function ProfileSettingsForm({ defaultValues }: ProfileSettingsFormProps)
               required
             />
             <FieldError errors={state.fieldErrors?.fullName?.map((message) => ({ message }))} />
+          </FieldContent>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="cpf">CPF do signatario</FieldLabel>
+          <FieldContent>
+            <Input
+              defaultValue={defaultValues.cpf ?? ""}
+              id="cpf"
+              name="cpf"
+              placeholder="000.000.000-00"
+              required
+            />
+            <FieldDescription>
+              Esse CPF identifica a pessoa fisica que assina as confirmacoes de titularidade.
+            </FieldDescription>
+            <FieldError errors={state.fieldErrors?.cpf?.map((message) => ({ message }))} />
+          </FieldContent>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="signerRole">Qualificacao do signatario</FieldLabel>
+          <FieldContent>
+            <Input
+              defaultValue={defaultValues.signerRole ?? ""}
+              id="signerRole"
+              name="signerRole"
+              placeholder="Ex.: Fotografo profissional"
+              required
+            />
+            <FieldDescription>
+              Esse texto entra no corpo do termo logo depois do nome do signatario.
+            </FieldDescription>
+            <FieldError errors={state.fieldErrors?.signerRole?.map((message) => ({ message }))} />
+          </FieldContent>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="signingCity">Cidade de assinatura</FieldLabel>
+          <FieldContent>
+            <Input
+              defaultValue={defaultValues.signingCity ?? ""}
+              id="signingCity"
+              name="signingCity"
+              placeholder="Ex.: Sao Paulo"
+              required
+            />
+            <FieldDescription>
+              A cidade e reutilizada na data final dos documentos assinados.
+            </FieldDescription>
+            <FieldError errors={state.fieldErrors?.signingCity?.map((message) => ({ message }))} />
           </FieldContent>
         </Field>
 
@@ -88,7 +142,8 @@ export function ProfileSettingsForm({ defaultValues }: ProfileSettingsFormProps)
         <ClientSignatureField
           defaultPayloadJson={defaultValues.signature?.payloadJson}
           defaultSignedName={defaultValues.signature?.signedName}
-          description="Essa assinatura fica salva no seu perfil para reaproveitar depois em termos, contratos e PDFs gerados pela plataforma."
+          description="Essa assinatura fica salva no seu perfil para reaproveitar nas confirmacoes de titularidade e em outros documentos gerados pela plataforma."
+          required={false}
           suggestedSignedName={defaultValues.fullName}
           title="Assinatura salva"
         />

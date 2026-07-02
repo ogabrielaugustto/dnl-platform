@@ -27,7 +27,7 @@ function getStatusMessage(params: { reset?: string; message?: string }) {
   if (params.message === "signup-complete") {
     return {
       className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      text: "Cadastro concluído com sucesso. Se sua conta exigir confirmação de e-mail, valide sua caixa de entrada antes de entrar.",
+      text: "Cadastro concluído com sucesso. Sua conta já está pronta para entrar.",
     };
   }
 

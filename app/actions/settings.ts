@@ -2,6 +2,10 @@
 
 import { refresh } from "next/cache";
 import { z } from "zod";
+import {
+  hasMissingProfileLegalFieldsError,
+  validateClientLegalProfile,
+} from "@/lib/client-legal-profile";
 import { requireManageableOrganization } from "@/lib/dal/settings";
 import { requirePanelAccess } from "@/lib/auth";
 import { hasMissingProfileSignatureFieldsError } from "@/lib/profile-signature";
@@ -22,6 +26,9 @@ const profileSchema = z.object({
     .trim()
     .min(3, "Informe seu nome completo.")
     .max(120, "Use ate 120 caracteres para o nome."),
+  cpf: z.string().trim(),
+  signerRole: z.string().trim(),
+  signingCity: z.string().trim(),
   avatarUrl: z
     .string()
     .trim()
@@ -131,6 +138,17 @@ function parseSignatureFromFormData(formData: FormData) {
   return createSignatureRecord(signaturePayload);
 }
 
+function parseOptionalSignatureFromFormData(formData: FormData) {
+  const rawPayload = formData.get("signaturePayload");
+
+  if (typeof rawPayload !== "string" || rawPayload.trim().length === 0) {
+    return null;
+  }
+
+  const signaturePayload = parseSignaturePayloadJson(rawPayload);
+  return createSignatureRecord(signaturePayload);
+}
+
 function hasMissingOrganizationFieldsError(error: unknown) {
   if (!error || typeof error !== "object") {
     return false;
@@ -158,6 +176,9 @@ export async function updateProfileSettingsAction(
 ): Promise<SettingsActionState> {
   const parsed = profileSchema.safeParse({
     fullName: formData.get("fullName"),
+    cpf: formData.get("cpf"),
+    signerRole: formData.get("signerRole"),
+    signingCity: formData.get("signingCity"),
     avatarUrl: formData.get("avatarUrl"),
   });
 
@@ -165,9 +186,26 @@ export async function updateProfileSettingsAction(
     return buildValidationErrorState(parsed.error);
   }
 
-  const signatureResult = parseSignatureFromFormData(formData);
+  const legalProfile = validateClientLegalProfile({
+    fullName: parsed.data.fullName,
+    cpf: parsed.data.cpf,
+    signerRole: parsed.data.signerRole,
+    signingCity: parsed.data.signingCity,
+  });
 
-  if (!signatureResult.ok) {
+  if (!legalProfile.ok) {
+    return {
+      status: "error",
+      message: legalProfile.message,
+      fieldErrors: {
+        cpf: [legalProfile.message],
+      },
+    };
+  }
+
+  const signatureResult = parseOptionalSignatureFromFormData(formData);
+
+  if (signatureResult && !signatureResult.ok) {
     return {
       status: "error",
       message: signatureResult.message,
@@ -182,22 +220,28 @@ export async function updateProfileSettingsAction(
   const { error } = await supabase
     .from("profiles")
     .update({
-      full_name: parsed.data.fullName,
+      full_name: legalProfile.profile.fullName,
+      cpf: legalProfile.profile.cpf,
+      signer_role: legalProfile.profile.signerRole,
+      signing_city: legalProfile.profile.signingCity,
       avatar_url: normalizeOptionalValue(parsed.data.avatarUrl),
-      signature_mode: signatureResult.record.mode,
-      signature_payload: signatureResult.record.payload,
-      signature_signed_name: signatureResult.record.signedName,
-      signature_svg: signatureResult.record.svg,
-      signature_updated_at: new Date().toISOString(),
+      signature_mode: signatureResult?.ok ? signatureResult.record.mode : null,
+      signature_payload: signatureResult?.ok ? signatureResult.record.payload : null,
+      signature_signed_name: signatureResult?.ok ? signatureResult.record.signedName : null,
+      signature_svg: signatureResult?.ok ? signatureResult.record.svg : null,
+      signature_updated_at: signatureResult?.ok ? new Date().toISOString() : null,
     })
     .eq("id", context.userId);
 
   if (error) {
-    if (hasMissingProfileSignatureFieldsError(error)) {
+    if (
+      hasMissingProfileSignatureFieldsError(error) ||
+      hasMissingProfileLegalFieldsError(error)
+    ) {
       return {
         status: "error",
         message:
-          "A assinatura ainda nao pode ser salva porque a migration do banco nao foi aplicada no Supabase.",
+          "Os novos campos do perfil ainda nao podem ser salvos porque a migration do banco nao foi aplicada no Supabase.",
       };
     }
 

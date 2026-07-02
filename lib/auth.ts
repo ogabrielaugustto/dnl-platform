@@ -118,7 +118,7 @@ export function getDefaultPanelPath(context: AuthContext): string {
     return "/dashboard";
   }
 
-  return "/auth/login";
+  return "/onboarding";
 }
 
 export async function redirectAuthenticatedUser(panel: AppPanel) {

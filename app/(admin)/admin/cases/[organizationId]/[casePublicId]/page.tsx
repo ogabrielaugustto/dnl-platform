@@ -171,6 +171,54 @@ function ImagePanel({
   );
 }
 
+function SignedDeclarationPanel(props: {
+  declaration: NonNullable<Awaited<ReturnType<typeof getAdminCaseDetails>>>["latestSignedDeclaration"];
+}) {
+  if (!props.declaration) {
+    return (
+      <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+        Nenhuma declaracao assinada foi encontrada para este caso ainda.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+      <div className="rounded-lg border border-border bg-muted/20 p-4">
+        <h2 className="font-heading text-lg font-semibold tracking-tight">
+          Declaracao recebida do cliente
+        </h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <InfoBlock label="Imagem" value={formatPublicId(props.declaration.assetPublicId)} />
+          <InfoBlock label="Recebida em" value={formatDate(props.declaration.createdAt)} />
+          <InfoBlock label="Signatario" value={props.declaration.signerFullName} />
+          <InfoBlock label="CPF" value={props.declaration.signerCpf} />
+          <InfoBlock label="Qualificacao" value={props.declaration.signerRole} />
+          <InfoBlock label="Cidade" value={props.declaration.signingCity} />
+        </div>
+        <div className="mt-4 rounded-lg border border-border bg-card p-4">
+          <pre className="whitespace-pre-wrap text-sm leading-7 text-foreground">
+            {props.declaration.body}
+          </pre>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-muted/20 p-4">
+        <h2 className="font-heading text-lg font-semibold tracking-tight">
+          Assinatura aplicada
+        </h2>
+        <div
+          className="mt-4 overflow-hidden rounded-2xl border border-border bg-white p-4 [&>svg]:h-auto [&>svg]:w-full"
+          dangerouslySetInnerHTML={{ __html: props.declaration.signatureSvg }}
+        />
+        <div className="mt-4 rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+          Documento salvo em {formatDate(props.declaration.createdAt)} com template {props.declaration.templateVersion}.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TimelineItem({
   title,
   subtitle,
@@ -312,6 +360,9 @@ export default async function AdminCaseDetailsPage({
                 </TabsTrigger>
                 <TabsTrigger value="site" className="flex-none px-3 py-2">
                   Sinais do site
+                </TabsTrigger>
+                <TabsTrigger value="declaration" className="flex-none px-3 py-2">
+                  Declaracao assinada
                 </TabsTrigger>
               </TabsList>
 
@@ -494,6 +545,10 @@ export default async function AdminCaseDetailsPage({
                     fallback="Nenhum telefone encontrado"
                   />
                 </div>
+              </TabsContent>
+
+              <TabsContent value="declaration" className="pt-5">
+                <SignedDeclarationPanel declaration={adminCase.latestSignedDeclaration} />
               </TabsContent>
             </Tabs>
           </section>

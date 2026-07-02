@@ -1,6 +1,7 @@
 import "server-only";
 
 import { requirePanelAccess, type OrganizationMemberRole } from "@/lib/auth";
+import { hasMissingProfileLegalFieldsError } from "@/lib/client-legal-profile";
 import type { SignatureInputMode } from "@/lib/signature";
 import {
   hasMissingProfileSignatureFieldsError,
@@ -14,6 +15,9 @@ type ProfileSettingsRow = {
   full_name: string | null;
   avatar_url: string | null;
   last_signed_in_at: string | null;
+  cpf: string | null;
+  signer_role: string | null;
+  signing_city: string | null;
   signature_mode: SignatureInputMode | null;
   signature_payload: unknown;
   signature_signed_name: string | null;
@@ -42,6 +46,10 @@ export type ProfileSettingsData = {
   fullName: string | null;
   avatarUrl: string | null;
   lastSignedInAt: string | null;
+  cpf: string | null;
+  signerRole: string | null;
+  signingCity: string | null;
+  hasLegalProfile: boolean;
   signature:
     | {
         mode: SignatureInputMode;
@@ -165,14 +173,18 @@ export async function getProfileSettingsData(): Promise<ProfileSettingsData> {
   const profileResponse = await supabase
     .from("profiles")
     .select(
-      "id, email, full_name, avatar_url, last_signed_in_at, signature_mode, signature_payload, signature_signed_name, signature_svg, signature_updated_at, created_at",
+      "id, email, full_name, avatar_url, last_signed_in_at, cpf, signer_role, signing_city, signature_mode, signature_payload, signature_signed_name, signature_svg, signature_updated_at, created_at",
     )
     .eq("id", context.userId)
     .maybeSingle<ProfileSettingsRow>();
 
   let data = profileResponse.data;
 
-  if (profileResponse.error && hasMissingProfileSignatureFieldsError(profileResponse.error)) {
+  if (
+    profileResponse.error &&
+    (hasMissingProfileSignatureFieldsError(profileResponse.error) ||
+      hasMissingProfileLegalFieldsError(profileResponse.error))
+  ) {
     const fallback = await supabase
       .from("profiles")
       .select("id, email, full_name, avatar_url, last_signed_in_at, created_at")
@@ -185,6 +197,9 @@ export async function getProfileSettingsData(): Promise<ProfileSettingsData> {
           | "signature_signed_name"
           | "signature_svg"
           | "signature_updated_at"
+          | "cpf"
+          | "signer_role"
+          | "signing_city"
         >
       >();
 
@@ -192,9 +207,12 @@ export async function getProfileSettingsData(): Promise<ProfileSettingsData> {
       throw new Error("Nao foi possivel carregar os dados do perfil.");
     }
 
-    data = fallback.data
+        data = fallback.data
       ? {
           ...fallback.data,
+          cpf: null,
+          signer_role: null,
+          signing_city: null,
           signature_mode: null,
           signature_payload: null,
           signature_signed_name: null,
@@ -216,6 +234,15 @@ export async function getProfileSettingsData(): Promise<ProfileSettingsData> {
     fullName: data.full_name,
     avatarUrl: data.avatar_url,
     lastSignedInAt: data.last_signed_in_at,
+    cpf: data.cpf,
+    signerRole: data.signer_role,
+    signingCity: data.signing_city,
+    hasLegalProfile: Boolean(
+      data.full_name?.trim() &&
+        data.cpf?.trim() &&
+        data.signer_role?.trim() &&
+        data.signing_city?.trim(),
+    ),
     signature: normalizeProfileSignature(data),
     createdAt: data.created_at,
   };

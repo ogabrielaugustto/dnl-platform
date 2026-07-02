@@ -7,12 +7,10 @@ import {
   SearchCheckIcon,
   Settings2Icon,
 } from "lucide-react";
-import { SignatureRequiredDialog } from "@/app/(client)/_components/signature-required-dialog";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requirePanelAccess } from "@/lib/auth";
-import { getProfileSettingsData } from "@/lib/dal/settings";
 
 const clientNavigation = [
   { title: "Inicio", url: "/dashboard", icon: <GaugeIcon /> },
@@ -32,7 +30,6 @@ export default async function ClientLayout({
   children: React.ReactNode;
 }>) {
   const context = await requirePanelAccess("client");
-  const profile = await getProfileSettingsData();
 
   return (
     <SidebarProvider
@@ -63,13 +60,7 @@ export default async function ClientLayout({
       />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col">
-          <SignatureRequiredDialog
-            fullName={profile.fullName}
-            open={!profile.signature}
-          />
-          {children}
-        </div>
+        <div className="flex flex-1 flex-col">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

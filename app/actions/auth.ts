@@ -11,31 +11,24 @@ import {
 import { buildSupabaseAuthConfirmUrl } from "@/lib/email/links";
 import { createClient } from "@/lib/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { type AppPanel, getAuthContext, getDefaultPanelPath } from "@/lib/auth";
 import {
-  type AppPanel,
-  type AuthContext,
-  getAuthContext,
-  getDefaultPanelPath,
-} from "@/lib/auth";
+  fetchBrasilApiCompany,
+  parseRegistrationDocument,
+  validateOnboardingAddress,
+  validateRegistrationPhone,
+} from "@/lib/customer-onboarding";
 import {
-  AUTHORIZATION_TERMS_VERSION,
+  buildPendingSignupOnboardingFromMetadata,
   CUSTOMER_ONBOARDING_FLOW_VERSION,
   REGISTRATION_TERMS_VERSION,
   clearPendingSignupOnboarding,
   getPendingSignupOnboarding,
   setPendingSignupOnboarding,
 } from "@/lib/signup-onboarding";
-import { hasMissingProfileSignatureFieldsError } from "@/lib/profile-signature";
-import { createSignatureRecord, parseSignaturePayloadJson } from "@/lib/signature";
 
 type AuthActionState = {
   message?: string;
-  onboarding?: {
-    email: string;
-    fullName: string;
-    organizationName: string;
-    requiresEmailConfirmation: boolean;
-  };
   status?: "error" | "success";
 };
 
@@ -45,29 +38,50 @@ const loginSchema = z.object({
   panel: z.enum(["client", "admin"]),
 });
 
-const registerSchema = z
-  .object({
-    fullName: z.string().trim().min(3, "Informe seu nome completo."),
-    organizationName: z
-      .string()
-      .trim()
-      .min(2, "Informe o nome da organização."),
-    email: z.email("Informe um e-mail válido."),
-    password: z
-      .string()
-      .min(8, "A senha precisa ter pelo menos 8 caracteres."),
-    confirmPassword: z
-      .string()
-      .min(8, "Confirme sua senha com pelo menos 8 caracteres."),
-    acceptRegistrationTerms: z.literal(true, {
-      message:
-        "Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.",
-    }),
-  })
-  .refine((value) => value.password === value.confirmPassword, {
-    message: "As senhas precisam ser iguais.",
-    path: ["confirmPassword"],
-  });
+const registerSchema = z.object({
+  fullName: z.string().trim().min(3, "Informe seu nome completo."),
+  email: z.email("Informe um e-mail válido."),
+  phone: z.string().trim().min(1, "Informe seu celular."),
+  document: z.string().trim().min(1, "Informe seu CPF ou CNPJ."),
+  password: z
+    .string()
+    .min(8, "A senha precisa ter pelo menos 8 caracteres."),
+  acceptRegistrationTerms: z.literal(true, {
+    message:
+      "Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.",
+  }),
+});
+
+const completeOnboardingSchema = z.object({
+  workspaceName: z
+    .string()
+    .trim()
+    .min(2, "Informe o nome do workspace.")
+    .max(120, "Use até 120 caracteres para o nome do workspace."),
+  profession: z
+    .string()
+    .trim()
+    .min(2, "Informe sua profissão.")
+    .max(120, "Use até 120 caracteres para a profissão."),
+  postalCode: z.string().trim(),
+  addressNumber: z
+    .string()
+    .trim()
+    .min(1, "Informe o número do endereço.")
+    .max(40, "Use até 40 caracteres para o número."),
+  addressComplement: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value ?? ""),
+  hasNoComplement: z.boolean(),
+  referralSource: z
+    .string()
+    .trim()
+    .max(60, "Use até 60 caracteres para a origem.")
+    .optional()
+    .transform((value) => value ?? ""),
+});
 
 const forgotPasswordSchema = z.object({
   email: z.email("Informe um e-mail válido."),
@@ -91,113 +105,70 @@ const signOutSchema = z.object({
   panel: z.enum(["client", "admin"]).default("client"),
 });
 
-async function getActionContextFresh(): Promise<AuthContext | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return null;
-  }
-
-  const [{ data: profile }, { data: memberships }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("email, full_name, avatar_url, system_role, is_active")
-      .eq("id", user.id)
-      .maybeSingle<{
-        email: string | null;
-        full_name: string | null;
-        avatar_url: string | null;
-        system_role: "user" | "admin" | "super_admin";
-        is_active: boolean;
-      }>(),
-    supabase
-      .from("organization_members")
-      .select("organization_id, role, organizations(name)")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .order("created_at", { ascending: true })
-      .returns<
-        Array<{
-          organization_id: string;
-          role: "owner" | "admin" | "member";
-          organizations: { name: string } | null;
-        }>
-      >(),
-  ]);
-
-  const systemRole = profile?.system_role ?? "user";
-  const organizations =
-    memberships?.map((membership) => ({
-      organizationId: membership.organization_id,
-      organizationName: membership.organizations?.name ?? null,
-      role: membership.role,
-    })) ?? [];
-  const membership = organizations[0] ?? null;
-
-  return {
-    userId: user.id,
-    email: profile?.email ?? user.email ?? null,
-    fullName:
-      profile?.full_name ??
-      (typeof user.user_metadata.full_name === "string"
-        ? user.user_metadata.full_name
-        : null),
-    avatarUrl:
-      profile?.avatar_url ??
-      (typeof user.user_metadata.avatar_url === "string"
-        ? user.user_metadata.avatar_url
-        : null),
-    systemRole,
-    isActive: profile?.is_active ?? true,
-    isAdmin: systemRole === "admin" || systemRole === "super_admin",
-    membership,
-    organizations,
-  };
+function normalizeOptionalString(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }
 
-async function ensureCustomerWorkspace(
-  organizationName?: string,
-): Promise<{ ok: boolean; message?: string }> {
-  const supabase = await createClient();
-  const context = await getAuthContext();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+function getRequestIp(requestHeaders: Headers) {
+  const candidates = [
+    requestHeaders.get("cf-connecting-ip"),
+    requestHeaders.get("x-real-ip"),
+    requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim(),
+  ];
 
-  if (!context) {
-    return { ok: false, message: "Sessão não encontrada após a autenticação." };
+  return (
+    candidates.find((value) => typeof value === "string" && value.length > 0) ??
+    null
+  );
+}
+
+function hasMissingOnboardingProfileFieldsError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
   }
 
-  if (context.membership || context.isAdmin) {
-    return { ok: true };
+  const candidate = error as {
+    code?: string;
+    message?: string;
+    details?: string;
+  };
+  const combinedMessage = `${candidate.message ?? ""} ${candidate.details ?? ""}`;
+
+  return (
+    candidate.code === "42703" ||
+    combinedMessage.includes("phone") ||
+    combinedMessage.includes("profession") ||
+    combinedMessage.includes("postal_code") ||
+    combinedMessage.includes("address_number") ||
+    combinedMessage.includes("address_complement")
+  );
+}
+
+function hasMissingOnboardingOrganizationFieldsError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
   }
 
-  const normalizedOrganizationName =
-    organizationName?.trim() ||
-    (typeof user?.user_metadata.organization_name === "string"
-      ? user.user_metadata.organization_name.trim()
-      : "") ||
-    context.fullName?.trim() ||
-    "Minha organização";
+  const candidate = error as {
+    code?: string;
+    message?: string;
+    details?: string;
+  };
+  const combinedMessage = `${candidate.message ?? ""} ${candidate.details ?? ""}`;
 
-  const { error } = await supabase.rpc("create_organization", {
-    organization_name: normalizedOrganizationName,
-    organization_document: null,
-    organization_billing_email: context.email,
-  });
-
-  if (error) {
-    return {
-      ok: false,
-      message:
-        "Não foi possível criar a organização inicial da conta. Tente novamente.",
-    };
-  }
-
-  return { ok: true };
+  return (
+    candidate.code === "42703" ||
+    combinedMessage.includes("legal_name") ||
+    combinedMessage.includes("trade_name") ||
+    combinedMessage.includes("postal_code") ||
+    combinedMessage.includes("street") ||
+    combinedMessage.includes("number") ||
+    combinedMessage.includes("complement") ||
+    combinedMessage.includes("neighborhood") ||
+    combinedMessage.includes("city") ||
+    combinedMessage.includes("state")
+  );
 }
 
 async function safelySendWelcomeEmail({
@@ -229,45 +200,233 @@ async function safelySendWelcomeEmail({
   }
 }
 
-function getRequestIp(requestHeaders: Headers) {
-  const candidates = [
-    requestHeaders.get("cf-connecting-ip"),
-    requestHeaders.get("x-real-ip"),
-    requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim(),
-  ];
+async function buildPendingOnboardingFromCurrentUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  return candidates.find((value) => typeof value === "string" && value.length > 0) ?? null;
-}
-
-async function getOnboardingOrganizationId(userId: string) {
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle<{ organization_id: string }>();
-
-  if (error) {
+  if (!user) {
     return null;
   }
 
-  return data?.organization_id ?? null;
+  return buildPendingSignupOnboardingFromMetadata({
+    userId: user.id,
+    email: user.email,
+    userMetadata: (user.user_metadata ?? {}) as Record<string, unknown>,
+  });
 }
 
-function getPanelRedirect(panel: AppPanel, context: AuthContext): string {
+function getPanelRedirect(panel: AppPanel, context: Awaited<ReturnType<typeof getAuthContext>>) {
   if (panel === "admin") {
     return "/admin";
+  }
+
+  if (!context) {
+    return "/auth/login";
   }
 
   return getDefaultPanelPath(context);
 }
 
-function parseSignatureFromFormData(formData: FormData) {
-  const signaturePayload = parseSignaturePayloadJson(formData.get("signaturePayload"));
-  return createSignatureRecord(signaturePayload);
+async function upsertCustomerOrganization(params: {
+  userId: string;
+  workspaceName: string;
+  documentType: "cpf" | "cnpj";
+  documentValue: string;
+  phone: string;
+  email: string;
+  address: {
+    postalCode: string;
+    number: string;
+    complement: string | null;
+  };
+  company: NonNullable<Awaited<ReturnType<typeof getPendingSignupOnboarding>>>["company"];
+}) {
+  const admin = createAdminClient();
+  const organizationPayload = {
+    name: params.workspaceName,
+    document: params.documentType === "cnpj" ? params.documentValue : null,
+    billing_email: params.company?.billingEmail ?? params.email,
+    contact_email: params.email,
+    contact_phone: params.company?.contactPhone ?? params.phone,
+    legal_name: params.company?.legalName ?? null,
+    trade_name: params.company?.tradeName ?? null,
+    postal_code: params.address.postalCode,
+    street: params.company?.street ?? null,
+    number: params.address.number,
+    complement: params.address.complement,
+    neighborhood: params.company?.neighborhood ?? null,
+    city: params.company?.city ?? null,
+    state: params.company?.state ?? null,
+  };
+
+  const { data: membership, error: membershipError } = await admin
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", params.userId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle<{ organization_id: string }>();
+
+  if (membershipError) {
+    return {
+      ok: false as const,
+      message:
+        "Não foi possível verificar a organização vinculada a esta conta agora.",
+    };
+  }
+
+  if (membership?.organization_id) {
+    const { error } = await admin
+      .from("organizations")
+      .update(organizationPayload)
+      .eq("id", membership.organization_id);
+
+    if (error) {
+      if (hasMissingOnboardingOrganizationFieldsError(error)) {
+        const fallback = await admin
+          .from("organizations")
+          .update({
+            name: organizationPayload.name,
+            document: organizationPayload.document,
+            billing_email: organizationPayload.billing_email,
+            contact_email: organizationPayload.contact_email,
+            contact_phone: organizationPayload.contact_phone,
+          })
+          .eq("id", membership.organization_id);
+
+        if (fallback.error) {
+          return {
+            ok: false as const,
+            message:
+              "Não foi possível atualizar o workspace desta conta agora.",
+          };
+        }
+      } else {
+        return {
+          ok: false as const,
+          message: "Não foi possível atualizar o workspace desta conta agora.",
+        };
+      }
+    }
+
+    const { error: upsertMembershipError } = await admin
+      .from("organization_members")
+      .upsert(
+        {
+          organization_id: membership.organization_id,
+          user_id: params.userId,
+          role: "owner",
+          is_active: true,
+        },
+        {
+          onConflict: "organization_id,user_id",
+        },
+      );
+
+    if (upsertMembershipError) {
+      return {
+        ok: false as const,
+        message:
+          "Não foi possível atualizar o acesso desta conta ao workspace agora.",
+      };
+    }
+
+    return {
+      ok: true as const,
+      organizationId: membership.organization_id,
+    };
+  }
+
+  const { data: insertedOrganization, error: organizationError } = await admin
+    .from("organizations")
+    .insert(organizationPayload)
+    .select("id")
+    .maybeSingle<{ id: string }>();
+
+  if (organizationError || !insertedOrganization) {
+    if (organizationError && hasMissingOnboardingOrganizationFieldsError(organizationError)) {
+      const fallback = await admin
+        .from("organizations")
+        .insert({
+          name: organizationPayload.name,
+          document: organizationPayload.document,
+          billing_email: organizationPayload.billing_email,
+          contact_email: organizationPayload.contact_email,
+          contact_phone: organizationPayload.contact_phone,
+        })
+        .select("id")
+        .maybeSingle<{ id: string }>();
+
+      if (fallback.error || !fallback.data) {
+        return {
+          ok: false as const,
+          message: "Não foi possível criar o workspace inicial da conta agora.",
+        };
+      }
+
+      const { error: fallbackMembershipError } = await admin
+        .from("organization_members")
+        .upsert(
+          {
+            organization_id: fallback.data.id,
+            user_id: params.userId,
+            role: "owner",
+            is_active: true,
+          },
+          {
+            onConflict: "organization_id,user_id",
+          },
+        );
+
+      if (fallbackMembershipError) {
+        return {
+          ok: false as const,
+          message:
+            "Não foi possível vincular a conta ao workspace recém-criado agora.",
+        };
+      }
+
+      return {
+        ok: true as const,
+        organizationId: fallback.data.id,
+      };
+    }
+
+    return {
+      ok: false as const,
+      message: "Não foi possível criar o workspace inicial da conta agora.",
+    };
+  }
+
+  const { error: membershipInsertError } = await admin
+    .from("organization_members")
+    .upsert(
+      {
+        organization_id: insertedOrganization.id,
+        user_id: params.userId,
+        role: "owner",
+        is_active: true,
+      },
+      {
+        onConflict: "organization_id,user_id",
+      },
+    );
+
+  if (membershipInsertError) {
+    return {
+      ok: false as const,
+      message:
+        "Não foi possível vincular a conta ao workspace recém-criado agora.",
+    };
+  }
+
+  return {
+    ok: true as const,
+    organizationId: insertedOrganization.id,
+  };
 }
 
 export async function loginAction(
@@ -311,8 +470,6 @@ export async function loginAction(
     };
   }
 
-  let resolvedContext: AuthContext = context;
-
   if (!context.isActive) {
     await supabase.auth.signOut();
     return {
@@ -333,69 +490,31 @@ export async function loginAction(
         message: "Esta conta não possui acesso ao painel administrativo.",
       };
     }
-  } else {
-    const workspaceResult = await ensureCustomerWorkspace();
 
-    if (!workspaceResult.ok) {
-      await supabase.auth.signOut();
-      return {
-        status: "error",
-        message: workspaceResult.message,
-      };
-    }
-
-    const refreshedContext = await getActionContextFresh();
-
-    if (!refreshedContext) {
-      await supabase.auth.signOut();
-      return {
-        status: "error",
-        message: "Não foi possível recarregar o contexto da conta autenticada.",
-      };
-    }
-
-    resolvedContext = refreshedContext;
+    redirect("/admin");
   }
 
-  const userMetadata = data.user.user_metadata;
-  const hasRegistrationConsent =
-    typeof userMetadata.registration_terms_accepted_at === "string";
-  const hasAuthorizationConsent =
-    typeof userMetadata.authorization_terms_accepted_at === "string";
-
-  if (hasRegistrationConsent && !hasAuthorizationConsent) {
-    await setPendingSignupOnboarding({
+  if (!context.membership) {
+    const pendingOnboarding = buildPendingSignupOnboardingFromMetadata({
       userId: context.userId,
       email: context.email ?? email,
-      fullName:
-        context.fullName ??
-        (typeof userMetadata.full_name === "string" ? userMetadata.full_name : email),
-      organizationName:
-        (typeof userMetadata.organization_name === "string"
-          ? userMetadata.organization_name
-          : null) ??
-        context.membership?.organizationName ??
-        "Minha organização",
-      requiresEmailConfirmation: false,
-      registrationTermsAcceptedAt: userMetadata.registration_terms_accepted_at,
-      flowVersion:
-        typeof userMetadata.customer_onboarding_flow_version === "string"
-          ? userMetadata.customer_onboarding_flow_version
-          : CUSTOMER_ONBOARDING_FLOW_VERSION,
+      userMetadata: (data.user.user_metadata ?? {}) as Record<string, unknown>,
     });
 
-    redirect("/auth/register?onboarding=resume");
+    if (!pendingOnboarding) {
+      await supabase.auth.signOut();
+      return {
+        status: "error",
+        message:
+          "Não foi possível retomar o onboarding desta conta. Refaça o cadastro ou fale com a equipe DNL.",
+      };
+    }
+
+    await setPendingSignupOnboarding(pendingOnboarding);
+    redirect("/onboarding");
   }
 
-  if (panel === "client" && !resolvedContext.membership) {
-    await supabase.auth.signOut();
-    return {
-      status: "error",
-      message: "Esta conta ainda não possui uma organização vinculada.",
-    };
-  }
-
-  redirect(getPanelRedirect(panel, resolvedContext));
+  redirect(getPanelRedirect(panel, context));
 }
 
 export async function registerCustomerAction(
@@ -404,10 +523,10 @@ export async function registerCustomerAction(
 ): Promise<AuthActionState> {
   const parsed = registerSchema.safeParse({
     fullName: formData.get("fullName"),
-    organizationName: formData.get("organizationName"),
     email: formData.get("email"),
+    phone: formData.get("phone"),
+    document: formData.get("document"),
     password: formData.get("password"),
-    confirmPassword: formData.get("confirmPassword"),
     acceptRegistrationTerms: formData.get("acceptRegistrationTerms") === "on",
   });
 
@@ -418,8 +537,29 @@ export async function registerCustomerAction(
     };
   }
 
+  const phoneResult = validateRegistrationPhone(parsed.data.phone);
+  if (!phoneResult.ok) {
+    return {
+      status: "error",
+      message: phoneResult.message,
+    };
+  }
+
+  const documentResult = parseRegistrationDocument(parsed.data.document);
+  if (!documentResult.ok) {
+    return {
+      status: "error",
+      message: documentResult.message,
+    };
+  }
+
+  const company =
+    documentResult.document.type === "cnpj"
+      ? await fetchBrasilApiCompany(documentResult.document.value)
+      : null;
+
   const supabase = await createClient();
-  const { fullName, organizationName, email, password } = parsed.data;
+  const { fullName, email, password } = parsed.data;
   const registrationTermsAcceptedAt = new Date().toISOString();
 
   const { data, error } = await supabase.auth.signUp({
@@ -429,10 +569,23 @@ export async function registerCustomerAction(
       data: {
         customer_onboarding_flow_version: CUSTOMER_ONBOARDING_FLOW_VERSION,
         full_name: fullName,
-        organization_name: organizationName,
+        phone: phoneResult.phone,
+        registration_document: documentResult.document.value,
+        registration_document_type: documentResult.document.type,
         privacy_policy_accepted_at: registrationTermsAcceptedAt,
         registration_terms_accepted_at: registrationTermsAcceptedAt,
         registration_terms_version: REGISTRATION_TERMS_VERSION,
+        company_legal_name: company?.legalName ?? null,
+        company_trade_name: company?.tradeName ?? null,
+        company_postal_code: company?.postalCode ?? null,
+        company_street: company?.street ?? null,
+        company_number: company?.number ?? null,
+        company_complement: company?.complement ?? null,
+        company_neighborhood: company?.neighborhood ?? null,
+        company_city: company?.city ?? null,
+        company_state: company?.state ?? null,
+        company_billing_email: company?.billingEmail ?? null,
+        company_contact_phone: company?.contactPhone ?? null,
       },
     },
   });
@@ -453,64 +606,40 @@ export async function registerCustomerAction(
     };
   }
 
-  const onboardingState = {
-    email,
-    fullName,
-    organizationName,
-    requiresEmailConfirmation: !data.session,
-  } as const;
-
   await setPendingSignupOnboarding({
     userId: data.user.id,
     email,
     fullName,
-    organizationName,
-    requiresEmailConfirmation: !data.session,
+    phone: phoneResult.phone,
+    documentType: documentResult.document.type,
+    documentValue: documentResult.document.value,
+    company,
     registrationTermsAcceptedAt,
     flowVersion: CUSTOMER_ONBOARDING_FLOW_VERSION,
   });
-
-  if (!data.session) {
-    await safelySendWelcomeEmail({
-      email,
-      fullName,
-    });
-
-    return {
-      status: "success",
-      onboarding: onboardingState,
-    };
-  }
-
-  const workspaceResult = await ensureCustomerWorkspace(organizationName);
-
-  if (!workspaceResult.ok) {
-    await clearPendingSignupOnboarding();
-    await supabase.auth.signOut();
-    return {
-      status: "error",
-      message: workspaceResult.message,
-    };
-  }
 
   await safelySendWelcomeEmail({
     email,
     fullName,
   });
 
-  return {
-    status: "success",
-    onboarding: onboardingState,
-  };
+  if (!data.session) {
+    return {
+      status: "success",
+      message:
+        "Conta criada. Entre novamente para continuar o onboarding inicial da sua conta.",
+    };
+  }
+
+  redirect("/onboarding");
 }
 
 export async function completeCustomerOnboardingAction(
-  currentState: AuthActionState,
+  _: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
-  void currentState;
-
-  const pendingOnboarding = await getPendingSignupOnboarding();
+  const pendingOnboarding =
+    (await getPendingSignupOnboarding()) ?? (await buildPendingOnboardingFromCurrentUser());
 
   if (!pendingOnboarding) {
     return {
@@ -520,12 +649,34 @@ export async function completeCustomerOnboardingAction(
     };
   }
 
-  const signatureResult = parseSignatureFromFormData(formData);
+  const parsed = completeOnboardingSchema.safeParse({
+    workspaceName: formData.get("workspaceName"),
+    profession: formData.get("profession"),
+    postalCode: formData.get("postalCode"),
+    addressNumber: formData.get("addressNumber"),
+    addressComplement: formData.get("addressComplement"),
+    hasNoComplement: formData.get("hasNoComplement") === "on",
+    referralSource: formData.get("referralSource"),
+  });
 
-  if (!signatureResult.ok) {
+  if (!parsed.success) {
     return {
       status: "error",
-      message: signatureResult.message,
+      message: parsed.error.issues[0]?.message ?? "Dados inválidos.",
+    };
+  }
+
+  const addressResult = validateOnboardingAddress({
+    postalCode: parsed.data.postalCode,
+    number: parsed.data.addressNumber,
+    complement: parsed.data.addressComplement,
+    hasNoComplement: parsed.data.hasNoComplement,
+  });
+
+  if (!addressResult.ok) {
+    return {
+      status: "error",
+      message: addressResult.message,
     };
   }
 
@@ -536,14 +687,18 @@ export async function completeCustomerOnboardingAction(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user && user.id !== pendingOnboarding.userId) {
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  if (user.id !== pendingOnboarding.userId) {
     await clearPendingSignupOnboarding();
     await supabase.auth.signOut();
 
     return {
       status: "error",
       message:
-        "Encontramos um conflito de sessão durante o onboarding. Entre novamente para concluir o aceite.",
+        "Encontramos um conflito de sessão durante o onboarding. Entre novamente para concluir o cadastro.",
     };
   }
 
@@ -554,69 +709,89 @@ export async function completeCustomerOnboardingAction(
     return {
       status: "error",
       message:
-        "Não foi possível recuperar os dados da conta para salvar o aceite agora.",
+        "Não foi possível recuperar os dados da conta para concluir o onboarding agora.",
     };
   }
 
-  const acceptedAt = new Date().toISOString();
-  const ipAddress = getRequestIp(requestHeaders);
-  const userAgent = requestHeaders.get("user-agent");
-  const existingMetadata = authUserResponse.user.user_metadata ?? {};
+  const profilePayload = {
+    full_name: pendingOnboarding.fullName,
+    cpf:
+      pendingOnboarding.documentType === "cpf"
+        ? pendingOnboarding.documentValue
+        : null,
+    phone: pendingOnboarding.phone,
+    profession: parsed.data.profession,
+    postal_code: addressResult.address.postalCode,
+    address_number: addressResult.address.number,
+    address_complement: addressResult.address.complement,
+  };
 
   const { error: profileUpdateError } = await admin
     .from("profiles")
-    .update({
-      signature_mode: signatureResult.record.mode,
-      signature_payload: signatureResult.record.payload,
-      signature_signed_name: signatureResult.record.signedName,
-      signature_svg: signatureResult.record.svg,
-      signature_updated_at: acceptedAt,
-    })
+    .update(profilePayload)
     .eq("id", pendingOnboarding.userId);
 
   if (profileUpdateError) {
-    if (hasMissingProfileSignatureFieldsError(profileUpdateError)) {
+    if (hasMissingOnboardingProfileFieldsError(profileUpdateError)) {
       return {
         status: "error",
         message:
-          "A assinatura ainda nao pode ser salva porque a migration do banco nao foi aplicada no Supabase.",
+          "O onboarding ainda não pode ser concluído porque a migration nova do perfil não foi aplicada no banco.",
       };
     }
 
     return {
       status: "error",
-      message:
-        "Nao foi possivel salvar a assinatura da conta agora. Tente novamente em instantes.",
+      message: "Não foi possível salvar os dados do perfil agora.",
     };
   }
 
-  const organizationId =
-    user?.id === pendingOnboarding.userId
-      ? (await getActionContextFresh())?.membership?.organizationId ?? null
-      : await getOnboardingOrganizationId(pendingOnboarding.userId);
+  const organizationResult = await upsertCustomerOrganization({
+    userId: pendingOnboarding.userId,
+    workspaceName: parsed.data.workspaceName,
+    documentType: pendingOnboarding.documentType,
+    documentValue: pendingOnboarding.documentValue,
+    phone: pendingOnboarding.phone,
+    email: pendingOnboarding.email,
+    address: addressResult.address,
+    company: pendingOnboarding.company,
+  });
+
+  if (!organizationResult.ok) {
+    return {
+      status: "error",
+      message: organizationResult.message,
+    };
+  }
+
+  const completedAt = new Date().toISOString();
+  const ipAddress = getRequestIp(requestHeaders);
+  const userAgent = requestHeaders.get("user-agent");
+  const existingMetadata = authUserResponse.user.user_metadata ?? {};
+  const referralSource = normalizeOptionalString(parsed.data.referralSource);
 
   const { error: auditError } = await admin.from("audit_logs").insert({
-    action: "authorization_terms_accepted",
+    action: "customer_onboarding_completed",
     entity: "customer_onboarding",
     metadata: {
-      accepted_at: acceptedAt,
-      authorization_terms_title:
-        "Termo de Autorização para Monitoramento e Declaração de Titularidade",
-      authorization_terms_version: AUTHORIZATION_TERMS_VERSION,
+      completed_at: completedAt,
       customer_onboarding_flow_version: pendingOnboarding.flowVersion,
+      full_name: pendingOnboarding.fullName,
+      phone: pendingOnboarding.phone,
+      document_type: pendingOnboarding.documentType,
+      profession: parsed.data.profession,
+      workspace_name: parsed.data.workspaceName,
+      postal_code: addressResult.address.postalCode,
+      address_number: addressResult.address.number,
+      address_complement: addressResult.address.complement,
+      referral_source: referralSource,
       ip_address: ipAddress,
-      organization_name: pendingOnboarding.organizationName,
-      signature_mode: signatureResult.record.mode,
-      signature_signed_name: signatureResult.record.signedName,
-      signature_svg: signatureResult.record.svg,
+      user_agent: userAgent,
       registration_terms_accepted_at:
         pendingOnboarding.registrationTermsAcceptedAt,
       registration_terms_version: REGISTRATION_TERMS_VERSION,
-      requires_email_confirmation:
-        pendingOnboarding.requiresEmailConfirmation,
-      user_agent: userAgent,
     },
-    organization_id: organizationId,
+    organization_id: organizationResult.organizationId,
     user_id: pendingOnboarding.userId,
   });
 
@@ -624,7 +799,7 @@ export async function completeCustomerOnboardingAction(
     return {
       status: "error",
       message:
-        "Não foi possível registrar a trilha do aceite agora. Tente novamente em instantes.",
+        "Não foi possível registrar a trilha do onboarding agora. Tente novamente em instantes.",
     };
   }
 
@@ -633,12 +808,15 @@ export async function completeCustomerOnboardingAction(
     {
       user_metadata: {
         ...existingMetadata,
-        authorization_terms_accepted_at: acceptedAt,
-        authorization_terms_ip: ipAddress,
-        authorization_terms_user_agent: userAgent,
-        authorization_terms_version: AUTHORIZATION_TERMS_VERSION,
-        customer_onboarding_completed_at: acceptedAt,
+        full_name: pendingOnboarding.fullName,
+        phone: pendingOnboarding.phone,
+        registration_document: pendingOnboarding.documentValue,
+        registration_document_type: pendingOnboarding.documentType,
+        customer_onboarding_completed_at: completedAt,
         customer_onboarding_flow_version: pendingOnboarding.flowVersion,
+        workspace_name: parsed.data.workspaceName,
+        profession: parsed.data.profession,
+        referral_source: referralSource,
       },
     },
   );
@@ -647,17 +825,16 @@ export async function completeCustomerOnboardingAction(
     return {
       status: "error",
       message:
-        "Não foi possível salvar o aceite obrigatório agora. Tente novamente em instantes.",
+        "Não foi possível concluir o onboarding da conta agora. Tente novamente em instantes.",
     };
   }
 
   await clearPendingSignupOnboarding();
 
-  if (user?.id === pendingOnboarding.userId) {
-    redirect("/dashboard");
-  }
-
-  redirect("/auth/login?message=signup-complete");
+  return {
+    status: "success",
+    message: "Onboarding concluído.",
+  };
 }
 
 export async function signOutAction(formData: FormData) {

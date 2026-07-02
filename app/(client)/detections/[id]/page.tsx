@@ -6,11 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   formatDetectionStatus,
-  formatEvidenceCoverage,
   getDetectionStatusVariant,
-  getEvidenceCoverageVariant,
 } from "@/lib/detection-ui";
 import { getDetectionDetails } from "@/lib/dal/detections";
+import { getProfileSettingsData } from "@/lib/dal/settings";
 import { formatPublicId } from "@/lib/public-id";
 
 type DetectionDetailsPageProps = {
@@ -18,25 +17,6 @@ type DetectionDetailsPageProps = {
     id: string;
   }>;
 };
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "Não informado";
-  }
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-function formatDomain(value: string) {
-  if (!value || value === "site-nao-identificado") {
-    return "Site não identificado";
-  }
-
-  return value;
-}
 
 function isCaseStatus(status: string) {
   return status === "unauthorized";
@@ -73,7 +53,10 @@ export default async function DetectionDetailsPage({
   params,
 }: DetectionDetailsPageProps) {
   const { id } = await params;
-  const detection = await getDetectionDetails(id);
+  const [detection, profile] = await Promise.all([
+    getDetectionDetails(id),
+    getProfileSettingsData(),
+  ]);
   const comparisonEvidence =
     detection.evidences.find((item) => item.matchedImageUrl || item.screenshotUrl) ??
     detection.latestEvidence;
@@ -147,8 +130,26 @@ export default async function DetectionDetailsPage({
         <aside className="space-y-4">
           <section className="rounded-lg border border-border bg-card p-4 ">
             <IncidentActionsPanel
+              assetPublicId={detection.asset.publicId}
+              assetTitle={detection.asset.title}
               detectionId={detection.id}
               currentStatus={detection.incident.incidentStatus}
+              domain={detection.domain}
+              profile={{
+                fullName: profile.fullName,
+                cpf: profile.cpf,
+                signerRole: profile.signerRole,
+                signingCity: profile.signingCity,
+                signature: profile.signature
+                  ? {
+                      payloadJson: profile.signature.payloadJson,
+                      signedName: profile.signature.signedName,
+                      svg: profile.signature.svg,
+                      updatedAt: profile.signature.updatedAt,
+                    }
+                  : null,
+              }}
+              sourceUrl={detection.sourceUrl}
             />
           </section>
         </aside>
