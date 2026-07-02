@@ -2,6 +2,12 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 import { requireActiveOrganization } from "@/lib/dal/assets";
+import {
+  compareDetectionSourceScope,
+  filterByDetectionSourceScope,
+  parseDetectionSourceScope,
+  type DetectionSourceScope,
+} from "@/lib/dal/detection-source-scope";
 import { buildAssetPublicUrl } from "@/lib/r2";
 import { createClient } from "@/lib/server";
 
@@ -31,6 +37,7 @@ type DetectionRow = {
   matched_image_url: string | null;
   page_title: string | null;
   domain: string | null;
+  source_scope: string | null;
   confidence_score: number | null;
   vision_payload: Record<string, unknown> | null;
   status: string;
@@ -127,6 +134,7 @@ export type DetectionPlacementListItem = {
   pageTitle: string | null;
   domain: string | null;
   normalizedDomain: string;
+  sourceScope: DetectionSourceScope;
   confidenceScore: number | null;
   status: string;
   matchType: DetectionMatchType;
@@ -172,6 +180,7 @@ export type DetectionIncidentListItem = {
   asset: DetectionPlacementListItem["asset"];
   domain: string;
   normalizedDomain: string;
+  sourceScope: DetectionSourceScope;
   primaryPageTitle: string | null;
   firstSeenAt: string;
   latestSeenAt: string;
@@ -561,6 +570,7 @@ function mapDetection(
     pageTitle: detection.page_title,
     domain: detection.domain,
     normalizedDomain: parseNormalizedDomain(detection),
+    sourceScope: parseDetectionSourceScope(detection.source_scope),
     confidenceScore: detection.confidence_score,
     status: detection.status,
     matchType: parseMatchType(detection.vision_payload),
@@ -583,7 +593,7 @@ async function listDetectionRows(
   let query = supabase
     .from("detections")
     .select(
-      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
+      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, source_scope, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
     )
     .eq("organization_id", organizationId)
     .is("archived_at", null)
@@ -820,6 +830,7 @@ function buildDetectionIncidents(
         asset: representativePlacement.asset,
         domain: representativePlacement.domain ?? representativePlacement.normalizedDomain,
         normalizedDomain: representativePlacement.normalizedDomain,
+        sourceScope: representativePlacement.sourceScope,
         primaryPageTitle: pages[0]?.pageTitle ?? representativePlacement.pageTitle,
         firstSeenAt,
         latestSeenAt,
@@ -836,7 +847,7 @@ function buildDetectionIncidents(
         pages,
       };
     })
-    .sort((left, right) => compareIsoDatesDesc(left.latestSeenAt, right.latestSeenAt));
+    .sort(compareDetectionSourceScope);
 }
 
 export async function listOrganizationDetections(filters?: {
@@ -854,13 +865,14 @@ export async function listDetectionIncidents(filters?: {
   assetId?: string | null;
   status?: string | null;
   evidenceCoverage?: string | null;
+  sourceScope?: DetectionSourceScope | null;
 }): Promise<DetectionIncidentListItem[]> {
   const placements = await listOrganizationDetections({
     assetId: filters?.assetId ?? null,
   });
   const incidents = buildDetectionIncidents(placements);
 
-  return incidents.filter((incident) => {
+  const filteredIncidents = incidents.filter((incident) => {
     if (filters?.status && incident.incidentStatus !== filters.status) {
       return false;
     }
@@ -874,6 +886,8 @@ export async function listDetectionIncidents(filters?: {
 
     return true;
   });
+
+  return filterByDetectionSourceScope(filteredIncidents, filters?.sourceScope ?? null);
 }
 
 async function listCaseRows(filters?: {
@@ -884,7 +898,7 @@ async function listCaseRows(filters?: {
   let query = supabase
     .from("detections")
     .select(
-      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
+      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, source_scope, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
     )
     .eq("organization_id", organizationId)
     .in("status", ["unauthorized", "takedown_sent", "resolved"])
@@ -1139,7 +1153,7 @@ export async function getDetectionDetails(detectionId: string): Promise<Detectio
   const { data, error } = await supabase
     .from("detections")
     .select(
-      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
+      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, source_scope, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
     )
     .eq("organization_id", organizationId)
     .eq("id", detectionId)
@@ -1158,7 +1172,7 @@ export async function getDetectionDetails(detectionId: string): Promise<Detectio
   const siblingRowsPromise = supabase
     .from("detections")
     .select(
-      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
+      "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, source_scope, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
     )
     .eq("organization_id", organizationId)
     .eq("asset_id", detection.asset_id)

@@ -14,12 +14,14 @@ import {
   getEvidenceCoverageVariant,
 } from "@/lib/detection-ui";
 import { listDetectionIncidents } from "@/lib/dal/detections";
+import { type DetectionSourceScope } from "@/lib/dal/detection-source-scope";
 import { formatPublicId } from "@/lib/public-id";
 
 type DetectionsPageProps = {
   searchParams: Promise<{
     asset?: string;
     status?: string;
+    nationality?: string;
   }>;
 };
 
@@ -37,6 +39,7 @@ function formatDate(value: string | null) {
 function buildDetectionsHref(filters: {
   assetId?: string | null;
   status?: string | null;
+  nationality?: string | null;
 }) {
   const searchParams = new URLSearchParams();
 
@@ -46,6 +49,10 @@ function buildDetectionsHref(filters: {
 
   if (filters.status) {
     searchParams.set("status", filters.status);
+  }
+
+  if (filters.nationality) {
+    searchParams.set("nationality", filters.nationality);
   }
 
   const query = searchParams.toString();
@@ -66,6 +73,36 @@ function formatDomain(value: string) {
   return value;
 }
 
+function parseNationalityFilter(value: string | null | undefined): DetectionSourceScope | null {
+  if (value === "national" || value === "international" || value === "unknown") {
+    return value;
+  }
+
+  return null;
+}
+
+function formatSourceScope(value: DetectionSourceScope) {
+  switch (value) {
+    case "national":
+      return "BR Nacional";
+    case "international":
+      return "Internacional";
+    case "unknown":
+      return "Origem indefinida";
+  }
+}
+
+function sourceScopeBadgeClasses(value: DetectionSourceScope) {
+  switch (value) {
+    case "national":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "international":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "unknown":
+      return "border-border bg-muted/50 text-muted-foreground";
+  }
+}
+
 export default async function DetectionsPage({ searchParams }: DetectionsPageProps) {
   const params = await searchParams;
   const { organizationId } = await requireActiveOrganization();
@@ -75,6 +112,7 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
         ? null
         : "pending"
       : params.status;
+  const effectiveNationality = parseNationalityFilter(params.nationality);
   const [allIncidents, incidents, assets] = await Promise.all([
     listDetectionIncidents({
       assetId: params.asset ?? null,
@@ -82,6 +120,7 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
     listDetectionIncidents({
       assetId: params.asset ?? null,
       status: effectiveStatus,
+      sourceScope: effectiveNationality,
     }),
     listOrganizationAssets(),
   ]);
@@ -135,8 +174,33 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
               href={buildDetectionsHref({
                 assetId: params.asset ?? null,
                 status: option.value,
+                nationality: params.nationality ?? null,
               })}
               className={`inline-flex rounded-full border px-3 py-1 text-sm transition-colors ${filterClasses((params.status ?? "pending") === option.value)}`}
+            >
+              {option.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Nacionalidade
+          </span>
+          {[
+            { value: "all", label: "Todas" },
+            { value: "national", label: "Nacionais" },
+            { value: "international", label: "Internacionais" },
+            { value: "unknown", label: "Indefinidas" },
+          ].map((option) => (
+            <Link
+              key={option.value}
+              href={buildDetectionsHref({
+                assetId: params.asset ?? null,
+                status: params.status ?? null,
+                nationality: option.value === "all" ? null : option.value,
+              })}
+              className={`inline-flex rounded-full border px-3 py-1 text-sm transition-colors ${filterClasses((params.nationality ?? "all") === option.value)}`}
             >
               {option.label}
             </Link>
@@ -152,7 +216,12 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
               </span>
             </p>
             <Button asChild size="sm" variant="ghost">
-              <Link href={buildDetectionsHref({ status: params.status ?? null })}>
+              <Link
+                href={buildDetectionsHref({
+                  status: params.status ?? null,
+                  nationality: params.nationality ?? null,
+                })}
+              >
                 Limpar filtro
               </Link>
             </Button>
@@ -176,7 +245,7 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <div className="hidden grid-cols-[90px_minmax(220px,1.4fr)_minmax(160px,1fr)_110px_130px_140px_110px] gap-3 border-b border-border bg-muted/30 px-4 py-3 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground xl:grid">
+          <div className="hidden grid-cols-[90px_minmax(220px,1.4fr)_minmax(180px,1fr)_110px_130px_140px_110px] gap-3 border-b border-border bg-muted/30 px-4 py-3 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground xl:grid">
             <span>ID</span>
             <span>Obra</span>
             <span>Dominio</span>
@@ -190,7 +259,7 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
             {incidents.map((incident) => (
               <article
                 key={incident.key}
-                className="grid gap-3 px-4 py-4 xl:grid-cols-[90px_minmax(220px,1.4fr)_minmax(160px,1fr)_110px_130px_140px_110px] xl:items-center"
+                className="grid gap-3 px-4 py-4 xl:grid-cols-[90px_minmax(220px,1.4fr)_minmax(180px,1fr)_110px_130px_140px_110px] xl:items-center"
               >
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground xl:hidden">
@@ -233,9 +302,17 @@ export default async function DetectionsPage({ searchParams }: DetectionsPagePro
                 </div>
 
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {formatDomain(incident.domain)}
-                  </p>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {formatDomain(incident.domain)}
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className={sourceScopeBadgeClasses(incident.sourceScope)}
+                    >
+                      {formatSourceScope(incident.sourceScope)}
+                    </Badge>
+                  </div>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
                     {incident.primaryPageTitle ?? "Pagina sem titulo identificado"}
                   </p>

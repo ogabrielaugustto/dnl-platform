@@ -10,6 +10,7 @@ import type {
   DetectionPlacementListItem,
   DetectionSiteSnapshot,
 } from "@/lib/dal/detections";
+import { parseDetectionSourceScope } from "@/lib/dal/detection-source-scope";
 import { buildAssetPublicUrl } from "@/lib/r2";
 import { createClient } from "@/lib/server";
 
@@ -46,6 +47,7 @@ type DetectionRow = {
   matched_image_url: string | null;
   page_title: string | null;
   domain: string | null;
+  source_scope: string | null;
   confidence_score: number | null;
   vision_payload: Record<string, unknown> | null;
   status: string;
@@ -332,7 +334,7 @@ async function loadAdminDetectionContext() {
       supabase
         .from("detections")
         .select(
-          "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
+          "id, public_id, case_public_id, organization_id, asset_id, source_url, canonical_source_url, matched_image_url, page_title, domain, source_scope, confidence_score, vision_payload, status, first_seen_at, last_seen_at, last_scanned_at, reviewed_at, reviewed_by_user_id, created_at",
         )
         .is("archived_at", null)
         .order("last_seen_at", { ascending: false })
@@ -459,6 +461,7 @@ function hydratePlacements(context: Awaited<ReturnType<typeof loadAdminDetection
         pageTitle: detection.page_title,
         domain: detection.domain,
         normalizedDomain: parseNormalizedDomain(detection),
+        sourceScope: parseDetectionSourceScope(detection.source_scope),
         confidenceScore: detection.confidence_score,
         status: detection.status,
         matchType: parseMatchType(detection.vision_payload),
@@ -557,6 +560,7 @@ function buildIncidents(
         asset: representative.placement.asset,
         domain: representative.placement.domain ?? representative.placement.normalizedDomain,
         normalizedDomain: representative.placement.normalizedDomain,
+        sourceScope: representative.placement.sourceScope,
         primaryPageTitle: pages[0]?.pageTitle ?? representative.placement.pageTitle,
         firstSeenAt: sorted.reduce(
           (current, item) => pickEarliestIsoDate(current, item.placement.firstSeenAt),

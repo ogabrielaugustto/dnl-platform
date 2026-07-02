@@ -9,8 +9,9 @@ export function DetectionsPageSkeleton() {
         <Skeleton className="mt-2 h-4 w-full max-w-md" />
       </div>
 
-      <div className="rounded-lg border border-border bg-card px-3 py-3 ">
+      <div className="space-y-3 rounded-lg border border-border bg-card px-3 py-3 ">
         <Skeleton className="h-8 w-full max-w-2xl rounded-full" />
+        <Skeleton className="h-8 w-full max-w-xl rounded-full" />
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card ">
