@@ -3,7 +3,7 @@
 import { revalidatePath, refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { assetLicenseOptions } from "@/lib/asset-license";
+import { parseAssetBatchMetadata } from "@/lib/assets/upload-policy";
 import {
   buildManualScanDedupeKey,
   getDefaultNextRunAt,
@@ -23,18 +23,6 @@ const ACCEPTED_IMAGE_TYPES = new Set([
   "image/webp",
   "image/gif",
 ]);
-
-const assetLicenseValues = assetLicenseOptions.map((option) => option.value);
-
-const batchUploadSchema = z.object({
-  description: z.string().trim().optional(),
-  licenseType: z.enum(assetLicenseValues as [string, ...string[]], {
-    error: "Selecione um tipo de licenca valido.",
-  }),
-  existingFolderId: z.string().trim().optional(),
-  newFolderName: z.string().trim().optional(),
-  newFolderDescription: z.string().trim().optional(),
-});
 
 const createFolderSchema = z.object({
   name: z.string().trim().min(2, "Informe um nome com pelo menos 2 caracteres."),
@@ -402,18 +390,12 @@ export async function createAssetBatchAction(
   _: AssetBatchActionState,
   formData: FormData,
 ): Promise<AssetBatchActionState> {
-  const parsed = batchUploadSchema.safeParse({
-    description: getOptionalFormValue(formData, "description"),
-    licenseType: getOptionalFormValue(formData, "licenseType"),
-    existingFolderId: getOptionalFormValue(formData, "existingFolderId"),
-    newFolderName: getOptionalFormValue(formData, "newFolderName"),
-    newFolderDescription: getOptionalFormValue(formData, "newFolderDescription"),
-  });
+  const parsed = parseAssetBatchMetadata(formData);
 
   if (!parsed.success) {
     return {
       status: "error",
-      message: parsed.error.issues[0]?.message ?? "Dados invalidos.",
+      message: parsed.message,
     };
   }
 

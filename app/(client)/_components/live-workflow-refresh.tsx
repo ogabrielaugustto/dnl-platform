@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Spinner } from "@/components/ui/spinner";
 import { createClient } from "@/lib/client";
 
 const WATCHED_TABLES = [
@@ -17,7 +16,6 @@ const WATCHED_TABLES = [
 
 const ACTIVE_POLL_INTERVALS_MS = [8_000, 12_000, 20_000, 30_000] as const;
 const REFRESH_DEBOUNCE_MS = 900;
-const RECENT_REFRESH_VISIBLE_MS = 4_000;
 
 type LiveWorkflowRefreshProps = {
   organizationId: string;
@@ -29,8 +27,7 @@ export function LiveWorkflowRefresh({
   hasActiveWork,
 }: LiveWorkflowRefreshProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [lastRefreshReason, setLastRefreshReason] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visibilityRef = useRef(
     typeof document === "undefined" ? "visible" : document.visibilityState,
@@ -46,7 +43,7 @@ export function LiveWorkflowRefresh({
   }, []);
 
   useEffect(() => {
-    function refresh(reason: string) {
+    function refresh() {
       if (visibilityRef.current !== "visible") {
         return;
       }
@@ -59,7 +56,6 @@ export function LiveWorkflowRefresh({
         startTransition(() => {
           router.refresh();
         });
-        setLastRefreshReason(reason);
       }, REFRESH_DEBOUNCE_MS);
     }
 
@@ -75,7 +71,7 @@ export function LiveWorkflowRefresh({
           table,
           filter: `organization_id=eq.${organizationId}`,
         },
-        () => refresh("realtime"),
+        () => refresh(),
       );
     }
 
@@ -114,7 +110,6 @@ export function LiveWorkflowRefresh({
           startTransition(() => {
             router.refresh();
           });
-          setLastRefreshReason("poll");
           attempt += 1;
         }
 
@@ -132,36 +127,5 @@ export function LiveWorkflowRefresh({
     };
   }, [hasActiveWork, router]);
 
-  useEffect(() => {
-    if (!lastRefreshReason || hasActiveWork) {
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      setLastRefreshReason(null);
-    }, RECENT_REFRESH_VISIBLE_MS);
-
-    return () => clearTimeout(timeout);
-  }, [hasActiveWork, lastRefreshReason]);
-
-  if (!hasActiveWork && !isPending && !lastRefreshReason) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm">
-      {hasActiveWork || isPending ? (
-        <Spinner className="size-4 text-primary" />
-      ) : (
-        <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
-      )}
-      <span>
-        {isPending
-          ? "Atualizando acompanhamento..."
-          : hasActiveWork
-            ? "Acompanhando processamento. A tela atualiza quando o banco recebe novidades."
-            : "Dados atualizados automaticamente."}
-      </span>
-    </div>
-  );
+  return null;
 }
