@@ -642,7 +642,15 @@ export function CustomerOnboardingWizard({
                   </p>
                   <div className="pt-4">
                     <Button asChild className="h-11 rounded-lg px-6 shadow-none">
-                      <Link href="/dashboard">Acessar painel</Link>
+                      <Link
+                        href={
+                          pendingOnboarding.preferredPlanCode
+                            ? `/billing?plan=${pendingOnboarding.preferredPlanCode}`
+                            : "/billing"
+                        }
+                      >
+                        Escolher plano
+                      </Link>
                     </Button>
                   </div>
                 </div>

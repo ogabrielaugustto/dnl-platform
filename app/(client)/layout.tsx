@@ -53,6 +53,7 @@ export default async function ClientLayout({
           avatar: context.avatarUrl ?? "",
           email: context.email ?? "",
           name: context.fullName ?? context.email ?? "Cliente",
+          billingHref: "/billing",
           organizationHref: "/settings/organization",
           profileHref: "/settings/profile",
         }}

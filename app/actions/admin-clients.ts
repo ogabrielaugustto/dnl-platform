@@ -20,12 +20,12 @@ const updateClientScanFrequencySchema = z.object({
   frequency: z.enum(["hourly", "daily", "weekly", "monthly"]),
 });
 
-async function getStarterPlanId() {
+async function getBasicPlanId() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("subscription_plans")
     .select("id")
-    .eq("code", "starter")
+    .eq("code", "basic")
     .maybeSingle<{ id: string }>();
 
   if (error || !data) {
@@ -99,10 +99,10 @@ export async function updateClientScanFrequencyAction(
       };
     }
   } else {
-    const starterPlanId = await getStarterPlanId();
+    const basicPlanId = await getBasicPlanId();
     const { error } = await supabase.from("organization_subscriptions").insert({
       organization_id: organizationId,
-      plan_id: starterPlanId,
+      plan_id: basicPlanId,
       status: "active",
       provider: "manual",
       scan_frequency_cap_snapshot: frequency,

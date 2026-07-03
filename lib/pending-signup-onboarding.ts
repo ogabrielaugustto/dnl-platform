@@ -28,6 +28,7 @@ export const pendingSignupOnboardingSchema = z.object({
   documentType: z.enum(["cpf", "cnpj"]),
   documentValue: z.string().min(11).max(14),
   company: brasilApiCompanySchema.nullable(),
+  preferredPlanCode: z.enum(["basic", "professional"]).nullable().optional(),
   registrationTermsAcceptedAt: z.string().datetime(),
   flowVersion: z.string().min(1),
 });
@@ -67,6 +68,10 @@ export function buildPendingSignupOnboardingFromMetadata(
   const registrationTermsAcceptedAt = readOptionalString(
     input.userMetadata,
     "registration_terms_accepted_at",
+  );
+  const preferredPlanCode = readOptionalString(
+    input.userMetadata,
+    "preferred_billing_plan_code",
   );
   const flowVersion =
     readOptionalString(input.userMetadata, "customer_onboarding_flow_version") ??
@@ -110,7 +115,7 @@ export function buildPendingSignupOnboardingFromMetadata(
         } satisfies BrasilApiCompany)
       : null;
 
-  const result = pendingSignupOnboardingSchema.safeParse({
+  const payload = {
     userId: input.userId,
     email,
     fullName,
@@ -120,7 +125,12 @@ export function buildPendingSignupOnboardingFromMetadata(
     company,
     registrationTermsAcceptedAt,
     flowVersion,
-  });
+    ...(preferredPlanCode === "basic" || preferredPlanCode === "professional"
+      ? { preferredPlanCode }
+      : {}),
+  };
+
+  const result = pendingSignupOnboardingSchema.safeParse(payload);
 
   return result.success ? result.data : null;
 }

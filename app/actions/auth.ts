@@ -43,6 +43,7 @@ const registerSchema = z.object({
   email: z.email("Informe um e-mail válido."),
   phone: z.string().trim().min(1, "Informe seu celular."),
   document: z.string().trim().min(1, "Informe seu CPF ou CNPJ."),
+  preferredPlanCode: z.enum(["basic", "professional"]).nullable(),
   password: z
     .string()
     .min(8, "A senha precisa ter pelo menos 8 caracteres."),
@@ -526,6 +527,11 @@ export async function registerCustomerAction(
     email: formData.get("email"),
     phone: formData.get("phone"),
     document: formData.get("document"),
+    preferredPlanCode:
+      formData.get("preferredPlanCode") === "basic" ||
+      formData.get("preferredPlanCode") === "professional"
+        ? formData.get("preferredPlanCode")
+        : null,
     password: formData.get("password"),
     acceptRegistrationTerms: formData.get("acceptRegistrationTerms") === "on",
   });
@@ -575,6 +581,7 @@ export async function registerCustomerAction(
         privacy_policy_accepted_at: registrationTermsAcceptedAt,
         registration_terms_accepted_at: registrationTermsAcceptedAt,
         registration_terms_version: REGISTRATION_TERMS_VERSION,
+        preferred_billing_plan_code: parsed.data.preferredPlanCode,
         company_legal_name: company?.legalName ?? null,
         company_trade_name: company?.tradeName ?? null,
         company_postal_code: company?.postalCode ?? null,
@@ -614,6 +621,7 @@ export async function registerCustomerAction(
     documentType: documentResult.document.type,
     documentValue: documentResult.document.value,
     company,
+    preferredPlanCode: parsed.data.preferredPlanCode,
     registrationTermsAcceptedAt,
     flowVersion: CUSTOMER_ONBOARDING_FLOW_VERSION,
   });
@@ -785,6 +793,7 @@ export async function completeCustomerOnboardingAction(
       address_number: addressResult.address.number,
       address_complement: addressResult.address.complement,
       referral_source: referralSource,
+      preferred_billing_plan_code: pendingOnboarding.preferredPlanCode ?? null,
       ip_address: ipAddress,
       user_agent: userAgent,
       registration_terms_accepted_at:
@@ -816,6 +825,7 @@ export async function completeCustomerOnboardingAction(
         customer_onboarding_flow_version: pendingOnboarding.flowVersion,
         workspace_name: parsed.data.workspaceName,
         profession: parsed.data.profession,
+        preferred_billing_plan_code: pendingOnboarding.preferredPlanCode ?? null,
         referral_source: referralSource,
       },
     },

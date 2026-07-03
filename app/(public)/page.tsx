@@ -13,7 +13,6 @@ import {
   ShieldCheckIcon,
   SparklesIcon,
 } from "lucide-react";
-import { APP_NAME } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,12 +21,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatPlanPrice } from "@/lib/billing/plans";
+import { APP_NAME } from "@/lib/brand";
+import { listBillingPlansFromDatabase } from "@/lib/dal/billing";
 
 export const metadata: Metadata = {
   title: "Landing Page",
   description:
     "Direito na Lente ajuda fotógrafos, agências e marcas a monitorar imagens, revisar ocorrências e proteger o uso licenciado de seus ativos visuais.",
 };
+
+export const dynamic = "force-dynamic";
 
 const featureCards = [
   {
@@ -107,7 +111,9 @@ const complianceCards = [
   },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const pricingPlans = await listBillingPlansFromDatabase();
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-14 px-4 py-8 sm:px-6 sm:py-10 lg:gap-20 lg:px-8 lg:py-20">
       <section className="grid gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(320px,0.98fr)] lg:items-center">
@@ -265,6 +271,67 @@ export default function LandingPage() {
             </Card>
           );
         })}
+      </section>
+
+      <section id="planos" className="space-y-8">
+        <div className="max-w-3xl space-y-3">
+          <p className="text-sm font-medium uppercase tracking-[0.32em] text-primary">
+            Planos
+          </p>
+          <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground lg:text-5xl">
+            Comece com 7 dias grátis.
+          </h2>
+          <p className="text-sm leading-7 text-muted-foreground lg:text-base">
+            Escolha o plano depois do onboarding inicial. A assinatura fica
+            vinculada à organização e o pagamento é feito com cartão de crédito
+            pelo Stripe.
+          </p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          {pricingPlans.map((plan) => (
+            <Card key={plan.code} className="flex h-full flex-col bg-white/90 shadow-[0_18px_60px_rgba(37,99,235,0.08)]">
+              <CardHeader className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle>{plan.name}</CardTitle>
+                  {plan.isComingSoon ? (
+                    <span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">
+                      Em breve
+                    </span>
+                  ) : null}
+                </div>
+                <CardDescription>{plan.description}</CardDescription>
+                <div>
+                  <p className="font-heading text-4xl font-semibold tracking-tight">
+                    {formatPlanPrice(plan.priceCents)}
+                  </p>
+                  {!plan.isComingSoon ? (
+                    <p className="text-sm text-muted-foreground">por mês</p>
+                  ) : null}
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 text-sm leading-7 text-muted-foreground">
+                {plan.code === "custom"
+                  ? "Para operações com necessidades específicas, volume maior ou desenho comercial personalizado."
+                  : "Inclui ativação com teste grátis, painel de monitoramento, ocorrências e histórico centralizado."}
+              </CardContent>
+              <CardContent>
+                {plan.isSelectable ? (
+                  <Button asChild className="w-full">
+                    <Link href={`/auth/register?plan=${plan.code}`}>
+                      Começar teste grátis
+                      <ArrowRightIcon className="size-4" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button asChild className="w-full" variant="outline">
+                    <Link href="/contato">Falar com a DNL</Link>
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </section>
 
       <section className="space-y-6 rounded-[2rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(239,246,255,0.88))] p-8 shadow-[0_24px_80px_rgba(37,99,235,0.08)] lg:p-10">

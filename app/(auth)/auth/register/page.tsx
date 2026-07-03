@@ -1,9 +1,16 @@
 import { redirectAuthenticatedUser } from "@/lib/auth";
+import { resolvePreferredPlan } from "@/lib/dal/billing";
 import { AuthShell } from "@/components/auth-shell";
 import { SignupForm } from "@/components/signup-form";
 
-export default async function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plan?: string }>;
+}) {
   await redirectAuthenticatedUser("client");
+  const params = await searchParams;
+  const preferredPlan = await resolvePreferredPlan(params.plan);
 
   return (
     <AuthShell
@@ -13,7 +20,7 @@ export default async function RegisterPage() {
       eyebrow="Cadastro"
       title="Cadastro"
     >
-      <SignupForm />
+      <SignupForm preferredPlanCode={preferredPlan} />
     </AuthShell>
   );
 }

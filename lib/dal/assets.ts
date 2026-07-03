@@ -2,6 +2,7 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 import { requirePanelAccess, type OrganizationMemberRole } from "@/lib/auth";
+import { requireOperationalBillingAccess } from "@/lib/dal/billing";
 import { buildAssetPublicUrl } from "@/lib/r2";
 import { createClient } from "@/lib/server";
 
@@ -208,6 +209,8 @@ export async function requireActiveOrganization() {
   if (!membership) {
     throw new Error("Organizacao ativa nao encontrada.");
   }
+
+  await requireOperationalBillingAccess(membership.organizationId);
 
   return {
     context,

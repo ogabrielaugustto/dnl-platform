@@ -415,7 +415,7 @@ export function AdminClientsTable({ rows }: AdminClientsTableProps) {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Plano: <span className="font-medium text-foreground">{row.planName ?? "Starter manual"}</span>
+                    Plano: <span className="font-medium text-foreground">{row.planName ?? "Basic manual"}</span>
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Frequencia atual:{" "}

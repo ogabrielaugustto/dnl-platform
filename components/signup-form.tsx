@@ -22,7 +22,11 @@ const initialState: {
   status?: "error" | "success";
 } = {};
 
-export function SignupForm() {
+export function SignupForm({
+  preferredPlanCode,
+}: {
+  preferredPlanCode?: "basic" | "professional" | null;
+}) {
   const [state, formAction, pending] = useActionState(
     registerCustomerAction,
     initialState,
@@ -43,6 +47,11 @@ export function SignupForm() {
 
   return (
     <form action={formAction} className="flex flex-col">
+      <input
+        name="preferredPlanCode"
+        type="hidden"
+        value={preferredPlanCode ?? ""}
+      />
       <FieldGroup className="gap-2">
         <Field>
           <FieldLabel htmlFor="fullName">Nome</FieldLabel>
