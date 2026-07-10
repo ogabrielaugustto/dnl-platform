@@ -1,15 +1,13 @@
 import type { CSSProperties } from "react";
 import {
-  Building2Icon,
   BriefcaseIcon,
   BriefcaseBusinessIcon,
-  CreditCardIcon,
   FolderKanbanIcon,
   GaugeIcon,
   HistoryIcon,
   SearchCheckIcon,
   Settings2Icon,
-  UsersRoundIcon,
+  SlidersHorizontalIcon,
 } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
@@ -27,9 +25,7 @@ const adminNavigation = [
 
 const adminSecondaryNavigation = [
   { title: "Atividades", url: "/admin/activities", icon: <HistoryIcon /> },
-  { title: "Organizacoes", url: "/admin/organizations", icon: <Building2Icon /> },
-  { title: "Planos", url: "/admin/plans", icon: <CreditCardIcon /> },
-  { title: "Usuarios", url: "/admin/users", icon: <UsersRoundIcon /> },
+  { title: "Plataforma", url: "/admin/platform", icon: <SlidersHorizontalIcon /> },
   { title: "Varreduras", url: "/admin/scans", icon: <Settings2Icon /> },
 ];
 

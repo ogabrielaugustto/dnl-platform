@@ -70,7 +70,7 @@ export function ContactForm() {
             required
           />
           <FieldDescription>
-            A equipe recebe a mensagem por e-mail e responde usando o endereço informado acima.
+            A equipe recebe a mensagem por e-mail e responde usando o endereco informado acima.
           </FieldDescription>
         </Field>
 

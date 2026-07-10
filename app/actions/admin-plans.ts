@@ -67,6 +67,7 @@ export async function updateAdminPlanAction(
     userId: context.userId,
   });
 
+  revalidatePath("/admin/platform");
   revalidatePath("/admin/plans");
   revalidatePath("/admin/clients");
   revalidatePath("/admin/activities");

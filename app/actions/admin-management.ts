@@ -104,6 +104,7 @@ async function safelySendManagedUserWelcomeEmail({
 }
 
 function revalidateAdminManagementPaths() {
+  revalidatePath("/admin/platform");
   revalidatePath("/admin/users");
   revalidatePath("/admin/organizations");
   revalidatePath("/admin/clients");
