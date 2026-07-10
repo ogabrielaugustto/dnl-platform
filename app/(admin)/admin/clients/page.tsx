@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { listAdminClients } from "@/lib/dal/admin-clients";
 import { InviteUserDialog } from "../users/_components/invite-user-dialog";
 import { AdminClientsTable } from "./_components/admin-clients-table";
@@ -17,13 +16,14 @@ export default async function AdminClientsPage() {
             Clientes
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Gerencie os clientes, os acessos vinculados a cada organizacao e a
-            frequencia operacional de monitoramento sem depender da galeria.
+            Lista direta de clientes, acessos e frequencia de monitoramento.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant="outline">{clients.length} cliente(s)</Badge>
+          <span className="text-sm text-muted-foreground">
+            {clients.length} cliente(s)
+          </span>
           <InviteUserDialog
             mode="client"
             organizations={clients.map((client) => ({

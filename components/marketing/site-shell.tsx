@@ -6,9 +6,10 @@ import { MarketingMobileNav } from "@/components/marketing/mobile-nav";
 
 const navigationLinks = [
   { href: "/", label: "Início" },
-  { href: "/sobre", label: "Sobre" },
-  { href: "/contato", label: "Contato" },
   { href: "/#como-funciona", label: "Como funciona" },
+  { href: "/#planos", label: "Planos" },
+  { href: "/#faq", label: "FAQ" },
+  { href: "/contato", label: "Contato" },
 ];
 
 export function MarketingSiteShell({

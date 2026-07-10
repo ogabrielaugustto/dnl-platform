@@ -4,7 +4,8 @@ import {
   syncCheckoutSession,
   upsertStripeSubscription,
 } from "@/lib/billing/stripe-sync";
-import { getStripeClient, getStripeWebhookSecret } from "@/lib/stripe/server";
+import { constructStripeWebhookEvent } from "@/lib/stripe/webhook-event";
+import { getStripeClient, getStripeWebhookSecrets } from "@/lib/stripe/server";
 
 export const runtime = "nodejs";
 
@@ -40,15 +41,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "Missing Stripe signature." }, { status: 400 });
   }
 
-  let event: Stripe.Event;
+  const payload = await request.text();
+  const event = constructStripeWebhookEvent({
+    payload,
+    secrets: getStripeWebhookSecrets(),
+    signature,
+    stripe,
+  });
 
-  try {
-    event = stripe.webhooks.constructEvent(
-      await request.text(),
-      signature,
-      getStripeWebhookSecret(),
-    );
-  } catch {
+  if (!event) {
     return Response.json({ error: "Invalid Stripe signature." }, { status: 400 });
   }
 

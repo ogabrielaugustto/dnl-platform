@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePanelAccess } from "@/lib/auth";
 import { buildSubscriptionCheckoutLineItem } from "@/lib/billing/stripe-checkout";
+import { buildBillingPortalSessionParams } from "@/lib/billing/stripe-portal";
+import { getBillingAccessState } from "@/lib/billing/subscriptions";
 import {
   getCurrentOrganizationSubscription,
   getOrganizationStripeCustomerId,
@@ -86,7 +88,6 @@ export async function createBillingCheckoutAction(formData: FormData) {
       userId: context.userId,
     },
     mode: "subscription",
-    payment_method_types: ["card"],
     subscription_data: {
       metadata: {
         organizationId: organization.id,
@@ -103,4 +104,41 @@ export async function createBillingCheckoutAction(formData: FormData) {
   }
 
   redirect(checkoutSession.url);
+}
+
+export async function createBillingPortalAction() {
+  const context = await requirePanelAccess("client");
+  const membership = context.membership;
+
+  if (!membership) {
+    redirect("/onboarding");
+  }
+
+  const currentSubscription = await getCurrentOrganizationSubscription(
+    membership.organizationId,
+  );
+  const access = getBillingAccessState(currentSubscription);
+
+  if (!access.hasAccess) {
+    redirect(`/billing?reason=${access.reason}`);
+  }
+
+  if (!currentSubscription?.providerCustomerId) {
+    redirect("/billing?error=portal");
+  }
+
+  const stripe = getStripeClient();
+  const appUrl = getStripeAppUrl();
+  const portalSession = await stripe.billingPortal.sessions.create(
+    buildBillingPortalSessionParams({
+      appUrl,
+      customerId: currentSubscription.providerCustomerId,
+    }),
+  );
+
+  if (!portalSession.url) {
+    redirect("/billing?error=portal");
+  }
+
+  redirect(portalSession.url);
 }

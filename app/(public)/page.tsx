@@ -4,424 +4,623 @@ import {
   ArrowRightIcon,
   BadgeCheckIcon,
   BellRingIcon,
+  CameraIcon,
   CheckCircle2Icon,
-  EyeIcon,
+  CircleAlertIcon,
+  FileSearchIcon,
   FolderKanbanIcon,
   Layers3Icon,
   LockKeyholeIcon,
   SearchCheckIcon,
   ShieldCheckIcon,
   SparklesIcon,
+  UploadCloudIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { formatPlanPrice } from "@/lib/billing/plans";
-import { APP_NAME } from "@/lib/brand";
 import { listBillingPlansFromDatabase } from "@/lib/dal/billing";
+import {
+  homeAudienceItems,
+  homeBenefitCards,
+  homeFaqItems,
+  homeHero,
+  homeHeroHighlights,
+  homeProblemPoints,
+  homeProductRows,
+  homeProductStats,
+  homeTrustItems,
+  homeWorkflowSteps,
+} from "@/lib/marketing/home-page-content";
 
 export const metadata: Metadata = {
-  title: "Landing Page",
+  title: "Monitoramento de imagens com revisão humana",
   description:
-    "Direito na Lente ajuda fotógrafos, agências e marcas a monitorar imagens, revisar ocorrências e proteger o uso licenciado de seus ativos visuais.",
+    "Monitore onde suas imagens aparecem, revise ocorrências com contexto e acione a DNL quando houver uso não autorizado.",
 };
 
 export const dynamic = "force-dynamic";
 
-const featureCards = [
-  {
-    icon: EyeIcon,
-    title: "Monitoramento com leitura operacional",
-    description:
-      "Acompanhe ocorrências encontradas e entenda o que já tem evidência, o que ainda está processando e o que exige revisão.",
-  },
-  {
-    icon: ShieldCheckIcon,
-    title: "Análise com apoio humano especializado",
-    description:
-      "Você não recebe só um alerta solto. A plataforma organiza contexto, evidência e revisão para apoiar decisões com mais segurança.",
-  },
-  {
-    icon: FolderKanbanIcon,
-    title: "Tudo em um único painel",
-    description:
-      "Cadastre imagens, acompanhe varreduras, revise ocorrências e mantenha o histórico da proteção dos seus ativos no mesmo lugar.",
-  },
+const benefitIcons = [
+  SearchCheckIcon,
+  ShieldCheckIcon,
+  FolderKanbanIcon,
+  BellRingIcon,
 ];
 
-const workflowSteps = [
-  "Você sobe suas imagens e organiza seus ativos visuais",
-  "A plataforma monitora a web e identifica usos relacionados",
-  "As ocorrências aparecem com status, contexto e evidências",
-  "Você revisa o que faz sentido e ganha apoio especializado por trás do processo",
-  "Seu histórico fica centralizado para acompanhamento contínuo",
-];
-
-const proofItems = [
-  "Cadastro simples para começar a monitorar suas imagens",
-  "Ocorrências com leitura clara do que está em processamento e do que exige revisão",
-  "Evidências e histórico organizados no mesmo painel",
-  "Apoio humano por trás da operação para aumentar sua segurança",
-];
-
-const valueCards = [
-  {
-    icon: Layers3Icon,
-    title: "Seus ativos em um só lugar",
-    description:
-      "Centralize imagens, monitoramento, ocorrências e histórico de acompanhamento.",
-  },
-  {
-    icon: BellRingIcon,
-    title: "Você entende rápido o que importa",
-    description:
-      "A interface destaca o que está em espera, em processamento e o que merece sua atenção agora.",
-  },
-  {
-    icon: SparklesIcon,
-    title: "Mais tranquilidade no acompanhamento",
-    description:
-      "Por trás da plataforma existe revisão e acompanhamento especializado para fortalecer a segurança das suas imagens.",
-  },
-];
-
-const complianceCards = [
-  {
-    icon: ShieldCheckIcon,
-    title: "LGPD como diretriz operacional",
-    description:
-      "Tratamento de dados com foco em necessidade, segregação por organização, autenticação e segurança da operação.",
-  },
-  {
-    icon: LockKeyholeIcon,
-    title: "Controles de acesso",
-    description:
-      "A plataforma trabalha com acesso autenticado, contexto por organização e papéis distintos entre cliente e administração.",
-  },
-  {
-    icon: BellRingIcon,
-    title: "Transparência para o usuário",
-    description:
-      "Termos de uso, política de privacidade e banner de cookies ficam acessíveis desde a primeira navegação.",
-  },
-];
+const trustIcons = [ShieldCheckIcon, LockKeyholeIcon, BadgeCheckIcon];
 
 export default async function LandingPage() {
   const pricingPlans = await listBillingPlansFromDatabase();
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-14 px-4 py-8 sm:px-6 sm:py-10 lg:gap-20 lg:px-8 lg:py-20">
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(320px,0.98fr)] lg:items-center">
-        <div className="space-y-8">
-          <div className="inline-flex w-full items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-sm text-primary sm:w-auto">
-            <BadgeCheckIcon className="size-4 shrink-0" />
-            Plataforma para monitoramento de imagens com revisão humana
+    <div className="overflow-hidden">
+      <section className="relative border-b bg-[linear-gradient(180deg,#f5f8ff_0%,#ffffff_72%)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(37,99,235,0.18),transparent_30%),radial-gradient(circle_at_82%_12%,rgba(14,165,233,0.10),transparent_26%)]" />
+        <div className="relative mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,1.08fr)] lg:items-center lg:px-8 lg:py-20">
+          <div className="space-y-8">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/15 bg-white/80 px-3 py-2 text-sm font-medium text-primary shadow-sm shadow-primary/5">
+              <BadgeCheckIcon className="size-4 shrink-0" />
+              <span className="truncate">{homeHero.eyebrow}</span>
+            </div>
+
+            <div className="space-y-5">
+              <h1 className="max-w-4xl font-heading text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                {homeHero.headline}
+              </h1>
+              <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+                {homeHero.description}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Button asChild className="h-11 w-full px-5 sm:w-auto" size="lg">
+                <Link href={homeHero.primaryCta.href}>
+                  {homeHero.primaryCta.label}
+                  <ArrowRightIcon className="size-4 shrink-0" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                className="h-11 w-full bg-white/80 px-5 sm:w-auto"
+                size="lg"
+                variant="outline"
+              >
+                <Link href={homeHero.secondaryCta.href}>
+                  {homeHero.secondaryCta.label}
+                </Link>
+              </Button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {homeHeroHighlights.map((item) => (
+                <div
+                  key={item}
+                  className="flex min-h-20 items-start gap-3 rounded-md border bg-white/78 p-3 shadow-sm shadow-primary/5"
+                >
+                  <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-primary" />
+                  <p className="text-sm leading-5 text-foreground/80">{item}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
+          <ProductMockup />
+        </div>
+      </section>
+
+      <section
+        id="problema"
+        className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.74fr_1fr] lg:px-8 lg:py-20"
+      >
+        <div className="space-y-4">
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">
+            O problema
+          </p>
+          <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground lg:text-5xl">
+            O uso indevido quase nunca chega organizado.
+          </h2>
+          <p className="max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
+            Ele aparece em links soltos, prints fora de contexto e buscas manuais
+            que consomem tempo. A plataforma organiza esse sinal antes de
+            qualquer decisão.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {homeProblemPoints.map((item) => (
+            <div
+              key={item.title}
+              className="rounded-md border bg-white p-5 shadow-sm shadow-primary/5"
+            >
+              <CircleAlertIcon className="size-5 text-primary" />
+              <h3 className="mt-5 font-heading text-lg font-semibold">
+                {item.title}
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section
+        id="como-funciona"
+        className="border-y bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] text-white"
+      >
+        <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.86fr_1.14fr] lg:px-8 lg:py-20">
           <div className="space-y-5">
-            <h1 className="max-w-4xl font-heading text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-7xl">
-              Descubra onde suas imagens estão sendo usadas e acompanhe tudo em um só lugar.
-            </h1>
-            <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:leading-8 lg:text-lg">
-              {APP_NAME} foi feita para fotógrafos, agências, estúdios e marcas
-              que querem subir suas imagens, acompanhar ocorrências e proteger
-              melhor o uso licenciado dos seus ativos visuais com apoio humano e
-              mais clareza no processo.
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-sky-300">
+              Como funciona
+            </p>
+            <h2 className="font-heading text-3xl font-semibold tracking-tight lg:text-5xl">
+              Do upload ao encaminhamento, sem transformar ocorrência em certeza jurídica.
+            </h2>
+            <p className="max-w-xl text-sm leading-7 text-white/70 sm:text-base">
+              O fluxo separa monitoramento, revisão e encaminhamento. O cliente
+              entende o que foi encontrado, valida o uso e aciona a DNL quando
+              existe uso não autorizado.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Button asChild className="w-full sm:w-auto" size="lg">
-              <Link href="/auth/register">
-                Criar conta
-                <ArrowRightIcon className="size-4 shrink-0" />
-              </Link>
-            </Button>
-            <Button asChild className="w-full sm:w-auto" size="lg" variant="outline">
-              <Link href="/auth/login">Entrar</Link>
-            </Button>
-          </div>
-
           <div className="grid gap-3 sm:grid-cols-2">
-            {proofItems.map((item) => (
+            {homeWorkflowSteps.map((step) => (
               <div
-                key={item}
-                className="flex items-start gap-3 rounded-2xl border bg-white/80 px-4 py-4 shadow-xs"
+                key={step.label}
+                className="rounded-md border border-white/10 bg-white/[0.06] p-5"
               >
-                <span className="mt-0.5 flex size-8 min-h-8 min-w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <CheckCircle2Icon className="size-4" />
+                <span className="inline-flex size-10 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground">
+                  {step.label}
                 </span>
-                <p className="text-sm leading-6 text-foreground/85">{item}</p>
+                <h3 className="mt-5 font-heading text-xl font-semibold text-white">
+                  {step.title}
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-white/70">
+                  {step.description}
+                </p>
               </div>
             ))}
           </div>
         </div>
-
-        <Card className="border-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.95),transparent_28%),linear-gradient(135deg,oklch(0.2_0.04_260),oklch(0.3_0.05_240))] text-white shadow-[0_28px_90px_rgba(37,99,235,0.25)] ring-0">
-          <CardHeader className="space-y-4">
-            <CardTitle className="text-white">O que você acompanha na prática</CardTitle>
-            <CardDescription className="text-white/75">
-              Desde o envio da imagem até a revisão das ocorrências, você enxerga
-              o andamento do monitoramento com muito mais contexto.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-2xl bg-white/6 p-4">
-              <p className="text-sm uppercase tracking-[0.28em] text-white/55">
-                Estados importantes
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {[
-                  "Aguardando varredura",
-                  "Processando",
-                  "Ocorrências encontradas",
-                  "Aguardando revisão",
-                  "Possível infração",
-                ].map((status) => (
-                  <span
-                    key={status}
-                    className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs text-white"
-                  >
-                    {status}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/4 p-4">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex size-10 min-h-10 min-w-10 shrink-0 self-start items-center justify-center rounded-2xl bg-white/14 text-white">
-                  <SearchCheckIcon className="size-4" />
-                </span>
-                <div className="space-y-2">
-                  <p className="font-medium text-white">Mais segurança para decidir</p>
-                  <p className="text-sm leading-7 text-white/75">
-                    Cada detecção vem como apoio ao seu acompanhamento. Por trás da
-                    plataforma existe revisão humana para dar mais confiança ao processo.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/6 p-4">
-                <p className="text-xs uppercase tracking-[0.28em] text-white/60">
-                  Seus ativos
-                </p>
-                <p className="mt-2 text-sm leading-6 text-white/80">
-                  Você sobe imagens, acompanha usos encontrados e mantém tudo organizado.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/6 p-4">
-                <p className="text-xs uppercase tracking-[0.28em] text-white/60">
-                  Sua segurança
-                </p>
-                <p className="mt-2 text-sm leading-6 text-white/80">
-                  O processo conta com acompanhamento especializado para apoiar a revisão.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-3">
-        {featureCards.map((item) => {
-          const Icon = item.icon;
+      <section className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8 lg:py-20">
+        <div className="order-2 lg:order-1">
+          <ProductDetailPanel />
+        </div>
 
-          return (
-            <Card
-              key={item.title}
-              className="bg-white/85 shadow-[0_18px_60px_rgba(37,99,235,0.08)]"
-            >
-              <CardHeader className="space-y-4">
-                <span className="flex size-12 min-h-12 min-w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <Icon className="size-5" />
-                </span>
-                <CardTitle>{item.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm leading-7 text-muted-foreground">
-                {item.description}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-3">
-        {valueCards.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <Card key={item.title} className="bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(239,246,255,0.92))] shadow-[0_16px_48px_rgba(37,99,235,0.08)]">
-              <CardHeader className="space-y-4">
-                <span className="flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-                  <Icon className="size-5" />
-                </span>
-                <CardTitle>{item.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm leading-7 text-muted-foreground">
-                {item.description}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </section>
-
-      <section id="planos" className="space-y-8">
-        <div className="max-w-3xl space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.32em] text-primary">
-            Planos
+        <div className="order-1 space-y-5 lg:order-2">
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">
+            Produto
           </p>
           <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground lg:text-5xl">
-            Comece com 7 dias grátis.
+            O painel mostra o que precisa de atenção, não só uma lista de links.
           </h2>
-          <p className="text-sm leading-7 text-muted-foreground lg:text-base">
-            Escolha o plano depois do onboarding inicial. A assinatura fica
-            vinculada à organização e o pagamento é feito com cartão de crédito
-            pelo Stripe.
+          <p className="max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
+            A experiência foi desenhada para leitura operacional: status, fonte,
+            evidência e próximo passo ficam próximos para reduzir ruído e acelerar
+            a revisão.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ValuePill icon={UploadCloudIcon} text="Upload e organização de ativos" />
+            <ValuePill icon={FileSearchIcon} text="Ocorrências com evidência" />
+            <ValuePill icon={Layers3Icon} text="Histórico por organização" />
+            <ValuePill icon={SparklesIcon} text="Apoio humano no encaminhamento" />
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-[#f6f9ff]">
+        <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8 lg:py-20">
+          <div className="space-y-5">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">
+              Benefícios
+            </p>
+            <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground lg:text-5xl">
+              O ganho é sair da suspeita solta para uma rotina de revisão.
+            </h2>
+            <p className="max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
+              A plataforma não promete mágica. Ela reduz atrito operacional para
+              que você veja, compare e decida com mais contexto.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {homeBenefitCards.map((item, index) => {
+              const Icon = benefitIcons[index] ?? CheckCircle2Icon;
+
+              return (
+                <div
+                  key={item.title}
+                  className="rounded-md border bg-white p-5 shadow-sm shadow-primary/5"
+                >
+                  <span className="flex size-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Icon className="size-5" />
+                  </span>
+                  <h3 className="mt-5 font-heading text-xl font-semibold">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                    {item.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_0.86fr] lg:items-start lg:px-8 lg:py-20">
+        <div className="space-y-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">
+            Para quem é
+          </p>
+          <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground lg:text-5xl">
+            Feito para quem trata imagem como ativo, não como arquivo esquecido.
+          </h2>
+          <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+            O melhor encaixe é para quem já tem acervo autoral, licenciado ou
+            comercial e precisa entender onde esse material aparece depois da
+            entrega.
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          {pricingPlans.map((plan) => (
-            <Card key={plan.code} className="flex h-full flex-col bg-white/90 shadow-[0_18px_60px_rgba(37,99,235,0.08)]">
-              <CardHeader className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <CardTitle>{plan.name}</CardTitle>
+        <div className="rounded-md border bg-white p-5 shadow-sm shadow-primary/5">
+          <div className="flex items-center gap-3 border-b pb-4">
+            <CameraIcon className="size-5 text-primary" />
+            <p className="font-heading text-lg font-semibold">Perfis com fit</p>
+          </div>
+          <div className="mt-4 space-y-3">
+            {homeAudienceItems.map((item) => (
+              <div key={item} className="flex items-start gap-3">
+                <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-primary" />
+                <p className="text-sm leading-6 text-foreground/80">{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="planos" className="border-y bg-[#0f172a] text-white">
+        <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="max-w-3xl space-y-4">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-sky-300">
+              Planos
+            </p>
+            <h2 className="font-heading text-3xl font-semibold tracking-tight lg:text-5xl">
+              Comece pelo teste grátis. Fale com a DNL se sua operação exigir mais contexto.
+            </h2>
+            <p className="text-sm leading-7 text-white/70 sm:text-base">
+              Os planos abaixo vêm do cadastro real do sistema. Você pode começar
+              pelo cadastro direto ou abrir uma conversa quando o volume e o
+              risco pedirem uma avaliação mais próxima.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+            {pricingPlans.map((plan) => (
+              <div
+                key={plan.code}
+                className="flex h-full flex-col rounded-md border border-white/10 bg-white/[0.06] p-5"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-heading text-2xl font-semibold text-white">
+                      {plan.name}
+                    </h3>
+                    <p className="mt-3 text-sm leading-6 text-white/65">
+                      {plan.description}
+                    </p>
+                  </div>
                   {plan.isComingSoon ? (
-                    <span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">
+                    <span className="rounded-md border border-white/15 px-2.5 py-1 text-xs text-white/65">
                       Em breve
                     </span>
                   ) : null}
                 </div>
-                <CardDescription>{plan.description}</CardDescription>
-                <div>
+
+                <div className="mt-8">
                   <p className="font-heading text-4xl font-semibold tracking-tight">
                     {formatPlanPrice(plan.priceCents)}
                   </p>
                   {!plan.isComingSoon ? (
-                    <p className="text-sm text-muted-foreground">por mês</p>
+                    <p className="mt-1 text-sm text-white/55">por mês</p>
                   ) : null}
                 </div>
-              </CardHeader>
-              <CardContent className="flex-1 text-sm leading-7 text-muted-foreground">
-                {plan.code === "custom"
-                  ? "Para operações com necessidades específicas, volume maior ou desenho comercial personalizado."
-                  : "Inclui ativação com teste grátis, painel de monitoramento, ocorrências e histórico centralizado."}
-              </CardContent>
-              <CardContent>
+
+                <p className="mt-6 flex-1 text-sm leading-7 text-white/65">
+                  {plan.code === "custom"
+                    ? "Para operações com volume, risco ou desenho comercial específico."
+                    : "Inclui teste grátis, painel de monitoramento, ocorrências e histórico centralizado."}
+                </p>
+
                 {plan.isSelectable ? (
-                  <Button asChild className="w-full">
+                  <Button asChild className="mt-6 h-11 w-full" size="lg">
                     <Link href={`/auth/register?plan=${plan.code}`}>
                       Começar teste grátis
                       <ArrowRightIcon className="size-4" />
                     </Link>
                   </Button>
                 ) : (
-                  <Button asChild className="w-full" variant="outline">
+                  <Button
+                    asChild
+                    className="mt-6 h-11 w-full border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                    size="lg"
+                    variant="outline"
+                  >
                     <Link href="/contato">Falar com a DNL</Link>
                   </Button>
                 )}
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="space-y-6 rounded-[2rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(239,246,255,0.88))] p-8 shadow-[0_24px_80px_rgba(37,99,235,0.08)] lg:p-10">
-        <div className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.32em] text-primary">
-            Privacidade e conformidade
+      <section
+        id="seguranca"
+        className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.82fr_1.18fr] lg:px-8 lg:py-20"
+      >
+        <div className="space-y-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">
+            Segurança e confiança
           </p>
           <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground lg:text-5xl">
-            Sua conta com mais transparência e proteção de dados.
+            Confiança aqui vem de processo claro, não de selo inventado.
           </h2>
-          <p className="max-w-3xl text-sm leading-7 text-muted-foreground lg:text-base">
-            Desde o primeiro acesso, você encontra informações claras sobre
-            cookies, autenticação, privacidade e tratamento de dados, com base em
-            LGPD e foco em segurança da sua conta.
+          <p className="max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
+            A DNL comunica apenas o que sustenta na operação: privacidade
+            acessível, acesso autenticado, separação de papéis e revisão humana
+            antes de tratar uma ocorrência como caso.
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          {complianceCards.map((item) => {
-            const Icon = item.icon;
+        <div className="grid gap-4 md:grid-cols-3">
+          {homeTrustItems.map((item, index) => {
+            const Icon = trustIcons[index] ?? ShieldCheckIcon;
 
             return (
-              <Card key={item.title} className="bg-white/90 shadow-[0_14px_40px_rgba(37,99,235,0.06)]">
-                <CardHeader className="space-y-4">
-                  <span className="flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <Icon className="size-5" />
-                  </span>
-                  <CardTitle>{item.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm leading-7 text-muted-foreground">
+              <div
+                key={item.title}
+                className="rounded-md border bg-white p-5 shadow-sm shadow-primary/5"
+              >
+                <Icon className="size-5 text-primary" />
+                <h3 className="mt-5 font-heading text-lg font-semibold">
+                  {item.title}
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">
                   {item.description}
-                </CardContent>
-              </Card>
+                </p>
+              </div>
             );
           })}
         </div>
       </section>
 
-      <section
-        id="como-funciona"
-        className="grid gap-8 rounded-[2rem] bg-white/85 p-8 shadow-[0_24px_80px_rgba(37,99,235,0.08)] lg:grid-cols-[minmax(0,0.9fr)_minmax(320px,1.1fr)] lg:p-10"
-      >
-        <div className="space-y-4">
-          <p className="text-sm font-medium uppercase tracking-[0.32em] text-primary">
-            Como funciona
-          </p>
-          <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground lg:text-5xl">
-            Entenda em minutos como começar a monitorar suas imagens.
-          </h2>
-          <p className="max-w-xl text-sm leading-7 text-muted-foreground lg:text-base">
-            O processo foi desenhado para ser simples: você cadastra, acompanha,
-            revisa e ganha mais visibilidade sobre onde suas imagens aparecem.
-          </p>
-        </div>
+      <section id="faq" className="bg-[#f6f9ff]">
+        <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.74fr_1fr] lg:px-8 lg:py-20">
+          <div className="space-y-5">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">
+              Perguntas frequentes
+            </p>
+            <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground lg:text-5xl">
+              Respostas diretas para decidir se faz sentido começar agora.
+            </h2>
+          </div>
 
-        <div className="space-y-4">
-          {workflowSteps.map((step, index) => (
-            <div
-              key={step}
-              className="flex items-start gap-4 rounded-2xl border bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(239,246,255,0.76))] px-4 py-4"
+          <div className="space-y-3">
+            {homeFaqItems.map((item) => (
+              <details
+                key={item.question}
+                className="group rounded-md border bg-white p-5 shadow-sm shadow-primary/5"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-heading text-lg font-semibold">
+                  {item.question}
+                  <ArrowRightIcon className="size-4 shrink-0 transition group-open:rotate-90" />
+                </summary>
+                <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                  {item.answer}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <div className="grid gap-8 rounded-md border bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_54%,#f8fbff_100%)] p-6 shadow-sm shadow-primary/10 lg:grid-cols-[1fr_auto] lg:items-center lg:p-8">
+          <div className="space-y-3">
+            <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
+              Comece a monitorar suas imagens com mais clareza.
+            </h2>
+            <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+              Crie sua conta, cadastre seus ativos e veja como a DNL organiza o
+              caminho entre ocorrência encontrada, revisão humana e encaminhamento.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button asChild className="h-11 w-full px-5 sm:w-auto" size="lg">
+              <Link href="/auth/register">
+                Começar teste grátis
+                <ArrowRightIcon className="size-4" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              className="h-11 w-full bg-white/80 px-5 sm:w-auto"
+              size="lg"
+              variant="outline"
             >
-              <span className="flex size-10 min-h-10 min-w-10 shrink-0 self-start items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">
-                {index + 1}
-              </span>
-              <p className="pt-1 text-sm leading-7 text-foreground/85">{step}</p>
-            </div>
-          ))}
+              <Link href="/contato">Falar com a DNL</Link>
+            </Button>
+          </div>
         </div>
       </section>
+    </div>
+  );
+}
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="space-y-3">
-          <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
-            Crie sua conta e comece a acompanhar suas imagens hoje.
-          </h2>
-          <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
-            Se você quer mais controle sobre onde seus ativos visuais aparecem,
-            esse é o ponto de partida para organizar o monitoramento e revisar
-            ocorrências com muito mais clareza.
+function ProductMockup() {
+  return (
+    <div className="relative">
+      <div className="absolute -inset-6 rounded-[24px] bg-primary/10 blur-3xl" />
+      <div className="relative overflow-hidden rounded-md border border-white/65 bg-slate-950 shadow-[0_28px_90px_rgba(15,23,42,0.26)]">
+        <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.04] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="size-2.5 rounded-full bg-red-300" />
+            <span className="size-2.5 rounded-full bg-amber-300" />
+            <span className="size-2.5 rounded-full bg-emerald-300" />
+          </div>
+          <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/40">
+            Exemplo de painel
           </p>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <Button asChild className="w-full sm:w-auto" size="lg">
-            <Link href="/auth/register">Criar conta</Link>
-          </Button>
-          <Button asChild className="w-full sm:w-auto" size="lg" variant="outline">
-            <Link href="/sobre">Conhecer a proposta</Link>
-          </Button>
+
+        <div className="grid gap-4 p-4 sm:p-5">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {homeProductStats.map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-md border border-white/10 bg-white/[0.06] p-4"
+              >
+                <p className="text-2xl font-semibold tracking-tight text-white">
+                  {stat.value}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-white/50">
+                  {stat.label}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-md border border-white/10 bg-white/[0.04]">
+            <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-white/10 px-4 py-3">
+              <p className="text-sm font-medium text-white">Ocorrências recentes</p>
+              <span className="rounded-md bg-sky-400/10 px-2 py-1 text-xs text-sky-200">
+                Revisão ativa
+              </span>
+            </div>
+            <div className="divide-y divide-white/10">
+              {homeProductRows.map((row) => (
+                <div
+                  key={`${row.asset}-${row.source}`}
+                  className="grid gap-3 px-4 py-4 sm:grid-cols-[1.1fr_0.9fr]"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-white">{row.asset}</p>
+                    <p className="mt-1 text-xs text-white/45">{row.source}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <span className="rounded-md border border-white/10 px-2.5 py-1 text-xs text-white/70">
+                      {row.status}
+                    </span>
+                    <span className="rounded-md bg-white/10 px-2.5 py-1 text-xs text-white/60">
+                      {row.evidence}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
+    </div>
+  );
+}
+
+function ProductDetailPanel() {
+  return (
+    <div className="overflow-hidden rounded-md border bg-white shadow-sm shadow-primary/10">
+      <div className="border-b bg-[#f8fbff] px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-heading text-lg font-semibold">Revisão de ocorrência</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Campanha editorial - Look 04
+            </p>
+          </div>
+          <span className="rounded-md bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
+            Aguardando revisão
+          </span>
+        </div>
+      </div>
+
+      <div className="grid gap-0 md:grid-cols-[0.92fr_1.08fr]">
+        <div className="border-b bg-slate-950 p-5 text-white md:border-b-0 md:border-r">
+          <div className="aspect-[4/3] rounded-md border border-white/10 bg-[linear-gradient(135deg,rgba(37,99,235,0.55),rgba(15,23,42,0.85)),radial-gradient(circle_at_70%_22%,rgba(255,255,255,0.22),transparent_24%)] p-4">
+            <div className="flex h-full flex-col justify-between">
+              <div className="flex justify-between gap-3">
+                <span className="rounded-md bg-white/12 px-2.5 py-1 text-xs">
+                  Ativo original
+                </span>
+                <CameraIcon className="size-5 text-white/70" />
+              </div>
+              <div>
+                <p className="font-heading text-2xl font-semibold">
+                  Imagem #2048
+                </p>
+                <p className="mt-2 max-w-48 text-sm leading-6 text-white/65">
+                  Referência visual protegida no acervo do cliente.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <MiniMetric label="Fonte" value="Blog comercial" />
+            <MiniMetric label="Evidência" value="Screenshot capturado" />
+            <MiniMetric label="Status" value="Aguardando decisão" />
+            <MiniMetric label="Próximo passo" value="Validar autorização" />
+          </div>
+
+          <div className="rounded-md border bg-[#f8fbff] p-4">
+            <div className="flex items-start gap-3">
+              <SearchCheckIcon className="mt-0.5 size-5 shrink-0 text-primary" />
+              <div>
+                <p className="font-medium">Leitura operacional</p>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                  A ocorrência fica pronta para comparação, revisão do contexto e
+                  decisão: autorizado, ignorado ou uso não autorizado.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ValuePill({
+  icon: Icon,
+  text,
+}: Readonly<{
+  icon: typeof UploadCloudIcon;
+  text: string;
+}>) {
+  return (
+    <div className="flex items-center gap-3 rounded-md border bg-white px-4 py-3 shadow-sm shadow-primary/5">
+      <Icon className="size-4 shrink-0 text-primary" />
+      <p className="text-sm font-medium text-foreground/85">{text}</p>
+    </div>
+  );
+}
+
+function MiniMetric({
+  label,
+  value,
+}: Readonly<{
+  label: string;
+  value: string;
+}>) {
+  return (
+    <div className="rounded-md border bg-white p-3">
+      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
     </div>
   );
 }

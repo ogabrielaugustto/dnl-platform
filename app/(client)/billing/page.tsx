@@ -4,9 +4,13 @@ import {
   ArrowRightIcon,
   CheckCircle2Icon,
   CreditCardIcon,
+  ExternalLinkIcon,
   SparklesIcon,
 } from "lucide-react";
-import { createBillingCheckoutAction } from "@/app/actions/billing";
+import {
+  createBillingCheckoutAction,
+  createBillingPortalAction,
+} from "@/app/actions/billing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,23 +70,36 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               Assinatura
             </p>
             <h1 className="mt-4 font-heading text-4xl font-semibold tracking-tight">
-              Escolha um plano para ativar seu workspace.
+              {hasAccess
+                ? "Gerencie a assinatura do seu workspace."
+                : "Escolha um plano para ativar seu workspace."}
             </h1>
             <p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">
               A assinatura fica vinculada à organização{" "}
               <strong className="font-medium text-foreground">
                 {data.organization.name}
               </strong>
-              . O teste grátis dura 7 dias e o cartão só será cobrado ao fim
-              desse período.
+              {hasAccess
+                ? ". Use o portal seguro da Stripe para atualizar forma de pagamento, plano e cancelamento."
+                : ". O teste grátis dura 7 dias e o cartão só será cobrado ao fim desse período."}
             </p>
           </div>
-          {hasAccess ? (
-            <Badge className="gap-2" variant="secondary">
-              <CheckCircle2Icon className="size-4" />
-              Assinatura liberada
-            </Badge>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            {hasAccess ? (
+              <>
+                <Badge className="gap-2" variant="secondary">
+                  <CheckCircle2Icon className="size-4" />
+                  Assinatura liberada
+                </Badge>
+                <form action={createBillingPortalAction}>
+                  <Button type="submit">
+                    Gerenciar assinatura
+                    <ExternalLinkIcon />
+                  </Button>
+                </form>
+              </>
+            ) : null}
+          </div>
         </div>
 
         {params.checkout === "cancelled" ? (
@@ -105,7 +122,12 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           </BillingNotice>
         ) : null}
 
-        {params.error ? (
+        {params.error === "portal" ? (
+          <BillingNotice tone="warning">
+            Não foi possível abrir o portal de faturamento da Stripe agora.
+            Tente novamente em instantes.
+          </BillingNotice>
+        ) : params.error ? (
           <BillingNotice tone="warning">
             Não foi possível iniciar o checkout agora. Tente novamente em
             instantes.

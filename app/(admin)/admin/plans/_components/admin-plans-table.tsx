@@ -452,7 +452,7 @@ export function AdminPlansTable({ rows }: AdminPlansTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="align-top">
-                    <div className="min-w-[10rem]">
+                    <div className="min-w-40">
                       <p className="font-semibold text-foreground">
                         {formatPlanPrice(row.priceCents, row.currency)}
                       </p>
@@ -462,7 +462,7 @@ export function AdminPlansTable({ rows }: AdminPlansTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="align-top">
-                    <div className="min-w-[13rem] space-y-1 text-sm">
+                    <div className="min-w-52 space-y-1 text-sm">
                       <p>{formatLimit(row.maxAssets, "imagem(ns)")}</p>
                       <p>{formatLimit(row.maxTeamMembers, "usuario(s)")}</p>
                       <p className="text-muted-foreground">
@@ -471,7 +471,7 @@ export function AdminPlansTable({ rows }: AdminPlansTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="align-top">
-                    <div className="min-w-[10rem] text-sm">
+                    <div className="min-w-40 text-sm">
                       <p className="font-medium text-foreground">
                         {row.activeSubscriptions}/{row.totalSubscriptions}
                       </p>

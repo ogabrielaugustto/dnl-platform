@@ -9,7 +9,6 @@ import {
   sendAdminUserPasswordResetAction,
   toggleAdminUserActiveAction,
 } from "@/app/actions/admin-management";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +31,11 @@ import {
   formatMonitoringFrequency,
   monitoringFrequencyOptions,
 } from "@/lib/monitoring-frequency";
+import {
+  buildAdminClientTableRows,
+  filterAdminClientTableRows,
+  type AdminClientTableRow,
+} from "./admin-clients-table-helpers";
 
 type AdminClientsTableProps = {
   rows: AdminClientListItem[];
@@ -67,15 +71,25 @@ function formatSubscriptionStatus(value: string | null) {
   }
 }
 
-function formatMembershipRole(value: "owner" | "admin" | "member") {
+function formatMembershipRole(value: "owner" | "admin" | "member" | null) {
   switch (value) {
     case "owner":
       return "Responsavel";
     case "admin":
       return "Administrador";
-    default:
+    case "member":
       return "Membro";
+    default:
+      return "Sem acesso";
   }
+}
+
+function formatAccessStatus(value: boolean | null) {
+  if (value === null) {
+    return "Sem acesso";
+  }
+
+  return value ? "Acesso ativo" : "Acesso bloqueado";
 }
 
 function ClientUserActionButtons({
@@ -128,7 +142,7 @@ function ClientUserActionButtons({
   }
 
   return (
-    <div className="flex min-w-[14rem] flex-wrap justify-end gap-2">
+    <div className="flex min-w-[13rem] flex-wrap gap-2">
       <Button
         disabled={isPending}
         onClick={runToggle}
@@ -186,16 +200,13 @@ function ClientFrequencyControl({
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        Acoes
-      </p>
+    <div className="min-w-[12rem]">
       <Select
         disabled={isPending}
         onValueChange={handleChange}
         value={currentValue}
       >
-        <SelectTrigger className="w-full min-w-[14rem]">
+        <SelectTrigger className="h-9 w-full">
           <SelectValue placeholder="Selecione a frequencia" />
         </SelectTrigger>
         <SelectContent>
@@ -206,10 +217,21 @@ function ClientFrequencyControl({
           ))}
         </SelectContent>
       </Select>
-      <p className="text-xs text-muted-foreground">
-        Salva automaticamente ao trocar a frequencia.
-      </p>
     </div>
+  );
+}
+
+function ClientActionsCell({ row }: { row: AdminClientTableRow }) {
+  if (!row.userId) {
+    return <span className="text-sm text-muted-foreground">Sem acesso</span>;
+  }
+
+  return (
+    <ClientUserActionButtons
+      email={row.email}
+      isActive={row.userIsActive ?? false}
+      userId={row.userId}
+    />
   );
 }
 
@@ -218,91 +240,23 @@ export function AdminClientsTable({ rows }: AdminClientsTableProps) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [organizationFilter, setOrganizationFilter] = useState("all");
+  const tableRows = useMemo(() => buildAdminClientTableRows(rows), [rows]);
 
   const filteredRows = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    return rows
-      .map((row) => {
-        const organizationMatchesSearch =
-          !normalizedSearch ||
-          [row.name, row.billingEmail]
-            .join(" ")
-            .toLowerCase()
-            .includes(normalizedSearch);
-
-        const baseUsers = row.clientUsers.filter((user) => {
-          if (statusFilter !== "all") {
-            const expectedActive = statusFilter === "active";
-
-            if (user.isActive !== expectedActive) {
-              return false;
-            }
-          }
-
-          if (roleFilter !== "all" && user.role !== roleFilter) {
-            return false;
-          }
-
-          return true;
-        });
-
-        const visibleUsers = normalizedSearch
-          ? organizationMatchesSearch
-            ? baseUsers
-            : baseUsers.filter((user) =>
-                [user.fullName, user.email].join(" ").toLowerCase().includes(normalizedSearch),
-              )
-          : baseUsers;
-
-        return {
-          ...row,
-          visibleUsers,
-        };
-      })
-      .filter((row) => {
-        if (organizationFilter !== "all" && row.id !== organizationFilter) {
-          return false;
-        }
-
-        const hasSearch = normalizedSearch.length > 0;
-        const hasMemberFilters = statusFilter !== "all" || roleFilter !== "all";
-
-        if (!hasSearch && statusFilter === "all" && roleFilter === "all") {
-          return true;
-        }
-
-        const organizationMatchesSearch =
-          !hasSearch ||
-          [row.name, row.billingEmail]
-            .join(" ")
-            .toLowerCase()
-            .includes(normalizedSearch);
-
-        if (!hasSearch && hasMemberFilters) {
-          return row.visibleUsers.length > 0;
-        }
-
-        return organizationMatchesSearch || row.visibleUsers.length > 0;
-      });
-  }, [organizationFilter, roleFilter, rows, search, statusFilter]);
+    return filterAdminClientTableRows(tableRows, {
+      organizationFilter,
+      roleFilter,
+      search,
+      statusFilter,
+    });
+  }, [organizationFilter, roleFilter, search, statusFilter, tableRows]);
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm">
+    <div className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-4 py-4 md:px-5">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-foreground">Filtros de clientes</p>
-              <p className="text-sm text-muted-foreground">
-                Busque por cliente, organizacao, status do acesso e papel do usuario.
-              </p>
-            </div>
-            <Badge variant="outline">{filteredRows.length} cliente(s)</Badge>
-          </div>
-
-          <div className="flex flex-col gap-3 xl:flex-row xl:flex-nowrap">
-            <div className="flex-1 space-y-2">
+        <div className="flex flex-col gap-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(18rem,1.5fr)_repeat(3,minmax(10rem,1fr))_auto]">
+            <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 Buscar cliente
               </label>
@@ -317,7 +271,7 @@ export function AdminClientsTable({ rows }: AdminClientsTableProps) {
               </div>
             </div>
 
-            <div className="flex-1 space-y-2">
+            <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 Status
               </label>
@@ -333,7 +287,7 @@ export function AdminClientsTable({ rows }: AdminClientsTableProps) {
               </Select>
             </div>
 
-            <div className="flex-1 space-y-2">
+            <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 Papel de acesso
               </label>
@@ -350,7 +304,7 @@ export function AdminClientsTable({ rows }: AdminClientsTableProps) {
               </Select>
             </div>
 
-            <div className="flex-1 space-y-2">
+            <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 Organizacao
               </label>
@@ -368,165 +322,134 @@ export function AdminClientsTable({ rows }: AdminClientsTableProps) {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="flex items-end">
+              <Button
+                className="w-full md:w-auto"
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("all");
+                  setRoleFilter("all");
+                  setOrganizationFilter("all");
+                }}
+                type="button"
+                variant="ghost"
+              >
+                Limpar
+              </Button>
+            </div>
           </div>
 
-          <div className="flex justify-end">
-            <Button
-              onClick={() => {
-                setSearch("");
-                setStatusFilter("all");
-                setRoleFilter("all");
-                setOrganizationFilter("all");
-              }}
-              type="button"
-              variant="ghost"
-            >
-              Limpar filtros
-            </Button>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            {filteredRows.length} linha(s) exibida(s) de {tableRows.length}.
+          </p>
         </div>
       </div>
 
-      <div className="space-y-4 p-4 md:p-5">
-        {filteredRows.length > 0 ? (
-          filteredRows.map((row) => (
-            <section
-              key={row.id}
-              className="overflow-hidden rounded-xl border border-border bg-background"
-            >
-              <div className="grid gap-4 border-b border-border px-4 py-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
-                <div className="min-w-0">
-                  <p className="text-base font-semibold text-foreground">{row.name}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {row.billingEmail ?? "Sem e-mail de cobranca"}
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Criado em {formatDate(row.createdAt)}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant={row.isActive ? "secondary" : "destructive"}>
-                      {row.isActive ? "Cliente ativo" : "Cliente inativo"}
-                    </Badge>
-                    <Badge variant="outline">
+      <Table>
+        <TableHeader className="bg-muted/40">
+          <TableRow>
+            <TableHead>Cliente</TableHead>
+            <TableHead>Organizacao</TableHead>
+            <TableHead>Plano</TableHead>
+            <TableHead>Monitoramento</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Ultimo acesso</TableHead>
+            <TableHead>Acoes</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredRows.length > 0 ? (
+            filteredRows.map((row) => (
+              <TableRow key={`${row.organizationId}:${row.userId ?? "sem-acesso"}`}>
+                <TableCell className="align-top">
+                  <div className="min-w-[14rem]">
+                    <p className="font-medium text-foreground">
+                      {row.fullName ?? "Sem acesso cadastrado"}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {row.email ?? "Convide um usuario para este cliente"}
+                    </p>
+                    {row.userCreatedAt ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Criado em {formatDate(row.userCreatedAt)}
+                      </p>
+                    ) : null}
+                  </div>
+                </TableCell>
+                <TableCell className="align-top">
+                  <div className="min-w-[15rem]">
+                    <p className="font-medium text-foreground">{row.organizationName}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {row.organizationBillingEmail ?? "Sem e-mail de cobranca"}
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Org. criada em {formatDate(row.organizationCreatedAt)}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell className="align-top">
+                  <div className="min-w-[10rem] text-sm">
+                    <p className="font-medium text-foreground">
+                      {row.planName ?? "Basic manual"}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
                       {formatSubscriptionStatus(row.subscriptionStatus)}
-                    </Badge>
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {row.activeClientUsers}/{row.totalClientUsers} acesso(s)
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Plano: <span className="font-medium text-foreground">{row.planName ?? "Basic manual"}</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Frequencia atual:{" "}
-                    <span className="font-medium text-foreground">
-                      {formatMonitoringFrequency(row.scanFrequency)}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                  <div className="rounded-lg border border-border bg-card px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                      Acessos
-                    </p>
-                    <p className="mt-2 text-lg font-semibold text-foreground">
-                      {row.activeClientUsers}/{row.totalClientUsers}
-                    </p>
+                </TableCell>
+                <TableCell className="align-top">
+                  <div className="space-y-2">
+                    <ClientFrequencyControl
+                      organizationId={row.organizationId}
+                      organizationName={row.organizationName}
+                      value={row.scanFrequency}
+                    />
                     <p className="text-xs text-muted-foreground">
-                      ativos nesta organizacao
+                      {formatMonitoringFrequency(row.scanFrequency)}
                     </p>
                   </div>
-                  <ClientFrequencyControl
-                    organizationId={row.id}
-                    organizationName={row.name}
-                    value={row.scanFrequency}
-                  />
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-muted/40">
-                    <TableRow>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Acesso</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Ultimo acesso</TableHead>
-                      <TableHead className="text-right">Acoes</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {row.visibleUsers.length > 0 ? (
-                      row.visibleUsers.map((user) => (
-                        <TableRow key={`${row.id}:${user.userId}`}>
-                          <TableCell className="align-top">
-                            <div className="min-w-[14rem]">
-                              <p className="font-medium text-foreground">
-                                {user.fullName ?? "Cliente sem nome"}
-                              </p>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {user.email ?? "Sem e-mail"}
-                              </p>
-                              <p className="mt-2 text-xs text-muted-foreground">
-                                Criado em {formatDate(user.createdAt)}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="align-top">
-                            <div className="min-w-[10rem]">
-                              <Badge variant="outline">
-                                {formatMembershipRole(user.role)}
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell className="align-top">
-                            <Badge variant={user.isActive ? "secondary" : "destructive"}>
-                              {user.isActive ? "Acesso ativo" : "Acesso bloqueado"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="align-top">
-                            <div className="min-w-[10rem] text-sm">
-                              <p className="font-medium text-foreground">
-                                {formatDate(user.lastSignedInAt)}
-                              </p>
-                              <p className="mt-1 text-muted-foreground">
-                                Login individual do cliente
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="align-top">
-                            <ClientUserActionButtons
-                              email={user.email}
-                              isActive={user.isActive}
-                              userId={user.userId}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell className="h-24 text-center" colSpan={5}>
-                          Nenhum acesso de cliente encontrado para os filtros atuais.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </section>
-          ))
-        ) : (
-          <div className="rounded-lg border border-dashed border-border bg-card/60 p-8 text-center shadow-sm">
-            <h2 className="font-heading text-xl font-semibold tracking-tight">
-              Nenhum cliente encontrado
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Ajuste os filtros para localizar a organizacao ou o acesso que voce quer administrar.
-            </p>
-          </div>
-        )}
-      </div>
+                </TableCell>
+                <TableCell className="align-top">
+                  <div className="min-w-[10rem] text-sm">
+                    <p className="font-medium text-foreground">
+                      {row.organizationIsActive ? "Cliente ativo" : "Cliente inativo"}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {formatAccessStatus(row.userIsActive)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatMembershipRole(row.role)}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell className="align-top">
+                  <div className="min-w-[10rem] text-sm">
+                    <p className="font-medium text-foreground">
+                      {formatDate(row.lastSignedInAt)}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      Login individual do cliente
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell className="align-top">
+                  <ClientActionsCell row={row} />
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell className="h-28 text-center" colSpan={7}>
+                Nenhum cliente encontrado com os filtros atuais.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }
