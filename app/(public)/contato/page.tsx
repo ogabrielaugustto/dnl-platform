@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRightIcon, MailIcon, MessageSquareTextIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  MailIcon,
+  MessageCircleIcon,
+  MessageSquareTextIcon,
+} from "lucide-react";
 import { ContactForm } from "@/components/marketing/contact-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPublicPlatformContactSettings } from "@/lib/dal/admin-platform";
 
 export const metadata: Metadata = {
   title: "Contato",
@@ -11,7 +17,9 @@ export const metadata: Metadata = {
     "Entre em contato com a equipe da Direito na Lente para conhecer a plataforma e estruturar seu monitoramento.",
 };
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const contactSettings = await getPublicPlatformContactSettings();
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 px-4 py-10 sm:px-6 sm:py-16 lg:gap-14 lg:px-8 lg:py-24">
       <section className="grid gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,1.05fr)] lg:items-start">
@@ -52,6 +60,32 @@ export default function ContactPage() {
               </CardContent>
             </Card>
           </div>
+
+          {contactSettings.whatsappUrl ? (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader className="space-y-4">
+                <span className="flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+                  <MessageCircleIcon className="size-5" />
+                </span>
+                <CardTitle>Prefere falar pelo WhatsApp?</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
+                <p>
+                  Se for mais direto para voce, chame a equipe pelo WhatsApp de contato da plataforma.
+                </p>
+                <Button asChild variant="outline">
+                  <Link
+                    href={contactSettings.whatsappUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Abrir WhatsApp
+                    <ArrowRightIcon className="size-4 shrink-0" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
 
         <Card className="bg-white/90 shadow-[0_20px_70px_rgba(37,99,235,0.08)]">

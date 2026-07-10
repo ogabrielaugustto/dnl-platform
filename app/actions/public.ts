@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { getPublicPlatformContactSettings } from "@/lib/dal/admin-platform";
 import { sendContactLeadEmail } from "@/lib/email/service";
 
 type PublicActionState = {
@@ -34,7 +35,10 @@ export async function submitContactFormAction(
   }
 
   try {
+    const contactSettings = await getPublicPlatformContactSettings();
+
     await sendContactLeadEmail({
+      to: contactSettings.contactEmail,
       name: parsed.data.name,
       email: parsed.data.email,
       organization: parsed.data.organization?.trim() || null,

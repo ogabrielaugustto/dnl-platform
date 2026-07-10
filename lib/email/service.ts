@@ -119,19 +119,22 @@ export async function sendPasswordRecoveryEmail({
 }
 
 export async function sendContactLeadEmail({
+  to,
   name,
   email,
   organization,
   message,
 }: {
+  to?: string | null;
   name: string;
   email: string;
   organization: string | null;
   message: string;
 }) {
   const env = getResendEnv();
+  const destination = to ?? env.CONTACT_INBOX_EMAIL;
 
-  if (!env.CONTACT_INBOX_EMAIL) {
+  if (!destination) {
     throw new Error("CONTACT_INBOX_EMAIL nao configurado.");
   }
 
@@ -143,7 +146,7 @@ export async function sendContactLeadEmail({
   });
 
   await sendEmail({
-    to: env.CONTACT_INBOX_EMAIL,
+    to: destination,
     subject: content.subject,
     html: content.html,
     text: content.text,
