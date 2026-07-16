@@ -2,6 +2,10 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 import { requirePanelAccess } from "@/lib/auth";
+import {
+  buildAdminEvidenceImageUrl,
+  buildAdminEvidenceMatchedImageUrl,
+} from "@/lib/admin-evidence-assets";
 import type {
   DetectionDetails,
   DetectionEvidenceListItem,
@@ -96,14 +100,6 @@ export type AdminDetectionIncidentListItem = DetectionIncidentListItem & {
 export type AdminDetectionDetails = DetectionDetails & {
   organization: AdminDetectionIncidentListItem["organization"];
 };
-
-function buildEvidenceImageUrl(detectionId: string, evidenceId: string) {
-  return `/api/detections/${detectionId}/evidences/${evidenceId}/image`;
-}
-
-function buildEvidenceMatchedImageUrl(detectionId: string, evidenceId: string) {
-  return `/api/detections/${detectionId}/evidences/${evidenceId}/matched-image`;
-}
 
 function getMetadataValue(metadata: Record<string, unknown> | null | undefined, key: string) {
   if (!metadata || typeof metadata !== "object") {
@@ -227,10 +223,10 @@ function mapEvidence(
     id: evidence.id,
     scanRunId: evidence.scan_run_id,
     screenshotUrl: evidence.screenshot_storage_key
-      ? buildEvidenceImageUrl(detectionId, evidence.id)
+      ? buildAdminEvidenceImageUrl(detectionId, evidence.id)
       : null,
     matchedImageUrl: evidence.matched_image_storage_key
-      ? buildEvidenceMatchedImageUrl(detectionId, evidence.id)
+      ? buildAdminEvidenceMatchedImageUrl(detectionId, evidence.id)
       : null,
     matchedImageSourceUrl: evidence.matched_image_url_snapshot,
     capturedAt: evidence.captured_at,

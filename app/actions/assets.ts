@@ -11,6 +11,7 @@ import {
   requireWritableOrganization,
   type MonitoringRuleFrequency,
 } from "@/lib/dal/assets";
+import { getClientRepresentationUploadGate } from "@/lib/dal/client-representation-documents";
 import { buildAssetPublicUrl, deleteAssetFromR2, uploadAssetToR2 } from "@/lib/r2";
 import { createClient } from "@/lib/server";
 import { wakeWorkerForScanJob } from "@/lib/worker";
@@ -58,7 +59,7 @@ const archiveAssetSchema = z.object({
 
 export type AssetBatchActionState = {
   message?: string;
-  status?: "error";
+  status?: "error" | "signature_required";
 };
 
 export type FolderActionState = {
@@ -437,6 +438,18 @@ export async function createAssetBatchAction(
 
   try {
     const { organizationId, userId } = await requireWritableOrganization();
+    const representationGate = await getClientRepresentationUploadGate(organizationId);
+
+    if (representationGate.blockReason) {
+      return {
+        status: "signature_required",
+        message:
+          representationGate.blockReason === "pending"
+            ? "O SOA ja foi enviado pela Clicksign. Assine pelo e-mail recebido e tente confirmar o envio novamente."
+            : "Antes de iniciar o monitoramento das imagens, precisamos da assinatura do SOA.",
+      };
+    }
+
     const frequency = await getOrganizationMonitoringFrequency(organizationId);
     const folderId = await ensureFolderId({
       organizationId,

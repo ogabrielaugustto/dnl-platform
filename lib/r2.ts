@@ -74,6 +74,44 @@ export async function readEvidenceFromR2(key: string) {
   };
 }
 
+export async function uploadCaseDocumentToR2(params: {
+  key: string;
+  body: Buffer;
+  contentType: string;
+}) {
+  const client = getR2Client();
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: env.R2_BUCKET_EVIDENCE,
+      Key: params.key,
+      Body: params.body,
+      ContentType: params.contentType,
+    }),
+  );
+}
+
+export async function readCaseDocumentFromR2(key: string) {
+  const client = getR2Client();
+  const response = await client.send(
+    new GetObjectCommand({
+      Bucket: env.R2_BUCKET_EVIDENCE,
+      Key: key,
+    }),
+  );
+
+  const bytes = await response.Body?.transformToByteArray();
+
+  if (!bytes) {
+    throw new Error("Nao foi possivel ler o documento armazenado.");
+  }
+
+  return {
+    body: Buffer.from(bytes),
+    contentType: response.ContentType ?? "application/octet-stream",
+  };
+}
+
 export function buildAssetPublicUrl(key: string) {
   return `${env.R2_PUBLIC_BASE_URL.replace(/\/+$/, "")}/${key}`;
 }

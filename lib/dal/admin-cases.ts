@@ -2,6 +2,22 @@ import "server-only";
 
 import { requirePanelAccess } from "@/lib/auth";
 import {
+  ALL_DOCUMENT_KINDS,
+  DOCUMENT_KIND_LABELS,
+  buildCaseWorkflowReadiness,
+  inferWorkflowStageFromStatus,
+  resolveSettlementDisplayStatus,
+  type CaseEventKind,
+  type DocumentKind,
+  type DocumentStatus,
+  type SettlementStatus,
+  type WorkflowStage,
+} from "@/lib/admin-case-workflow";
+import {
+  buildAdminEvidenceImageUrl,
+  buildAdminEvidenceMatchedImageUrl,
+} from "@/lib/admin-evidence-assets";
+import {
   type DetectionEvidenceCoverage,
   type DetectionSiteSnapshot,
 } from "@/lib/dal/detections";
@@ -97,6 +113,111 @@ type ProfileRow = {
   id: string;
   full_name: string | null;
   email: string | null;
+};
+
+type CaseWorkflowRow = {
+  id: string;
+  organization_id: string;
+  case_public_id: number;
+  representative_detection_id: string | null;
+  stage: WorkflowStage;
+  priority: "low" | "normal" | "high" | "urgent";
+  assigned_to_user_id: string | null;
+  next_action: string | null;
+  next_action_due_at: string | null;
+  notified_name: string | null;
+  notified_email: string | null;
+  notified_phone: string | null;
+  notified_document: string | null;
+  notified_domain: string | null;
+  notified_website_url: string | null;
+  summary: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type CaseDocumentRow = {
+  id: string;
+  organization_id: string;
+  case_public_id: number;
+  workflow_id: string | null;
+  detection_id: string | null;
+  rights_ownership_confirmation_id: string | null;
+  platform_legal_document_id: string | null;
+  document_kind: DocumentKind;
+  status: DocumentStatus;
+  title: string;
+  notes: string | null;
+  storage_key: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  external_url: string | null;
+  provider: string | null;
+  external_envelope_id: string | null;
+  external_status: string | null;
+  signed_at: string | null;
+  sent_at: string | null;
+  expires_at: string | null;
+  is_current: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+type CaseEventRow = {
+  id: string;
+  organization_id: string;
+  case_public_id: number;
+  workflow_id: string | null;
+  detection_id: string | null;
+  user_id: string | null;
+  event_kind: CaseEventKind;
+  direction: "internal" | "outbound" | "inbound" | "system";
+  title: string;
+  body_snapshot: string | null;
+  notes: string | null;
+  communication_subject: string | null;
+  communication_body_snapshot: string | null;
+  occurred_at: string;
+  created_at: string;
+};
+
+type CaseSettlementRow = {
+  id: string;
+  organization_id: string;
+  case_public_id: number;
+  workflow_id: string | null;
+  status: SettlementStatus;
+  proposed_amount_cents: number | null;
+  currency: string;
+  proposal_sent_at: string | null;
+  sra_document_id: string | null;
+  payment_method: string | null;
+  payment_due_date: string | null;
+  payment_reference: string | null;
+  payment_url: string | null;
+  paid_amount_cents: number | null;
+  paid_at: string | null;
+  receipt_document_id: string | null;
+  collections_started_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type PlatformLegalDocumentRow = {
+  id: string;
+  document_kind: Extract<DocumentKind, "dnl_cnpj" | "dnl_social_contract" | "other">;
+  title: string;
+  description: string | null;
+  storage_key: string | null;
+  public_url: string | null;
+  external_url: string | null;
+  status: DocumentStatus;
+  version_label: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 type DetectionMatchType = "full" | "partial" | "page" | "unknown";
@@ -201,6 +322,86 @@ export type AdminSignedDeclarationItem = {
   createdAt: string;
 };
 
+export type AdminCaseWorkflowDocument = {
+  id: string;
+  kind: DocumentKind;
+  status: DocumentStatus;
+  title: string;
+  source: "case_document" | "rights_ownership_confirmation" | "platform_legal_document" | "missing";
+  notes: string | null;
+  downloadUrl: string | null;
+  externalUrl: string | null;
+  provider: string | null;
+  externalEnvelopeId: string | null;
+  externalStatus: string | null;
+  signedAt: string | null;
+  sentAt: string | null;
+  expiresAt: string | null;
+  fileName: string | null;
+  createdAt: string | null;
+};
+
+export type AdminCaseWorkflowEvent = {
+  id: string;
+  kind: CaseEventKind | string;
+  direction: "internal" | "outbound" | "inbound" | "system";
+  title: string;
+  body: string | null;
+  notes: string | null;
+  communicationSubject: string | null;
+  communicationBody: string | null;
+  actorName: string | null;
+  actorEmail: string | null;
+  occurredAt: string;
+  source: "workflow" | "detection_action";
+};
+
+export type AdminCaseSettlement = {
+  id: string;
+  status: SettlementStatus;
+  displayStatus: SettlementStatus;
+  proposedAmountCents: number | null;
+  proposedAmountFormatted: string | null;
+  currency: string;
+  proposalSentAt: string | null;
+  paymentMethod: string | null;
+  paymentDueDate: string | null;
+  paymentReference: string | null;
+  paymentUrl: string | null;
+  paidAmountCents: number | null;
+  paidAmountFormatted: string | null;
+  paidAt: string | null;
+  collectionsStartedAt: string | null;
+  notes: string | null;
+};
+
+export type AdminCaseWorkflowState = {
+  id: string | null;
+  stage: WorkflowStage;
+  priority: "low" | "normal" | "high" | "urgent";
+  assignedTo: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+  nextAction: string | null;
+  nextActionDueAt: string | null;
+  notified: {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    document: string | null;
+    domain: string | null;
+    websiteUrl: string | null;
+  };
+  summary: string | null;
+  documents: AdminCaseWorkflowDocument[];
+  events: AdminCaseWorkflowEvent[];
+  settlement: AdminCaseSettlement | null;
+  readiness: ReturnType<typeof buildCaseWorkflowReadiness>;
+  updatedAt: string | null;
+};
+
 export type AdminCaseListItem = {
   key: string;
   publicId: number;
@@ -246,19 +447,12 @@ export type AdminCaseListItem = {
   latestSignedDeclaration: AdminSignedDeclarationItem | null;
   signedDeclarations: AdminSignedDeclarationItem[];
   actionHistory: AdminCaseActionHistoryItem[];
+  workflow: AdminCaseWorkflowState;
   pages: AdminCasePageGroup[];
   placements: AdminCasePlacement[];
 };
 
 export type AdminCaseDetails = AdminCaseListItem;
-
-function buildEvidenceImageUrl(detectionId: string, evidenceId: string) {
-  return `/api/detections/${detectionId}/evidences/${evidenceId}/image`;
-}
-
-function buildEvidenceMatchedImageUrl(detectionId: string, evidenceId: string) {
-  return `/api/detections/${detectionId}/evidences/${evidenceId}/matched-image`;
-}
 
 function getMetadataValue(metadata: Record<string, unknown> | null | undefined, key: string) {
   if (!metadata || typeof metadata !== "object") {
@@ -445,6 +639,40 @@ function uniqueStrings(values: Array<string | null | undefined>) {
   );
 }
 
+function buildCaseKey(params: { organizationId: string; casePublicId: number }) {
+  return `${params.organizationId}:${params.casePublicId}`;
+}
+
+function buildCaseDocumentDownloadUrl(params: {
+  organizationId: string;
+  casePublicId: number;
+  documentId: string;
+}) {
+  return `/api/admin/cases/${params.organizationId}/${params.casePublicId}/documents/${params.documentId}`;
+}
+
+function formatMoney(cents: number | null, currency: string) {
+  if (typeof cents !== "number") {
+    return null;
+  }
+
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency,
+  }).format(cents / 100);
+}
+
+function sortDocuments(left: AdminCaseWorkflowDocument, right: AdminCaseWorkflowDocument) {
+  const leftIndex = ALL_DOCUMENT_KINDS.indexOf(left.kind);
+  const rightIndex = ALL_DOCUMENT_KINDS.indexOf(right.kind);
+
+  if (leftIndex !== rightIndex) {
+    return leftIndex - rightIndex;
+  }
+
+  return (right.createdAt ?? "").localeCompare(left.createdAt ?? "");
+}
+
 function parseActionReason(metadata: Record<string, unknown> | null | undefined) {
   const reason = getMetadataValue(metadata, "reason");
   return typeof reason === "string" && reason.trim().length > 0 ? reason : null;
@@ -455,10 +683,10 @@ function mapEvidence(evidence: DetectionEvidenceRow): AdminCasePlacementEvidence
     id: evidence.id,
     scanRunId: evidence.scan_run_id,
     screenshotUrl: evidence.screenshot_storage_key
-      ? buildEvidenceImageUrl(evidence.detection_id, evidence.id)
+      ? buildAdminEvidenceImageUrl(evidence.detection_id, evidence.id)
       : null,
     matchedImageUrl: evidence.matched_image_storage_key
-      ? buildEvidenceMatchedImageUrl(evidence.detection_id, evidence.id)
+      ? buildAdminEvidenceMatchedImageUrl(evidence.detection_id, evidence.id)
       : null,
     matchedImageSourceUrl: evidence.matched_image_url_snapshot,
     capturedAt: evidence.captured_at,
@@ -469,6 +697,168 @@ function mapEvidence(evidence: DetectionEvidenceRow): AdminCasePlacementEvidence
     finalUrl: getEvidenceFinalUrl(evidence.metadata),
     siteSnapshot: getSiteSnapshot(evidence.metadata),
   };
+}
+
+function mapCaseDocument(
+  document: CaseDocumentRow,
+  organizationId: string,
+): AdminCaseWorkflowDocument {
+  return {
+    id: document.id,
+    kind: document.document_kind,
+    status: document.status,
+    title: document.title,
+    source: "case_document",
+    notes: document.notes,
+    downloadUrl: document.storage_key
+      ? buildCaseDocumentDownloadUrl({
+          organizationId,
+          casePublicId: document.case_public_id,
+          documentId: document.id,
+        })
+      : null,
+    externalUrl: document.external_url,
+    provider: document.provider,
+    externalEnvelopeId: document.external_envelope_id,
+    externalStatus: document.external_status,
+    signedAt: document.signed_at,
+    sentAt: document.sent_at,
+    expiresAt: document.expires_at,
+    fileName: document.file_name,
+    createdAt: document.created_at,
+  };
+}
+
+function mapPlatformDocument(document: PlatformLegalDocumentRow): AdminCaseWorkflowDocument {
+  return {
+    id: `platform:${document.id}`,
+    kind: document.document_kind,
+    status: document.status,
+    title: document.title,
+    source: "platform_legal_document",
+    notes: document.description,
+    downloadUrl: null,
+    externalUrl: document.external_url ?? document.public_url,
+    provider: null,
+    externalEnvelopeId: null,
+    externalStatus: null,
+    signedAt: null,
+    sentAt: null,
+    expiresAt: null,
+    fileName: document.version_label,
+    createdAt: document.created_at,
+  };
+}
+
+function mapSignedDeclarationDocument(
+  declaration: AdminSignedDeclarationItem,
+): AdminCaseWorkflowDocument {
+  return {
+    id: `rhf:${declaration.id}`,
+    kind: "rhf",
+    status: "signed",
+    title: "RHF assinado no portal",
+    source: "rights_ownership_confirmation",
+    notes: `Assinado por ${declaration.signerFullName}`,
+    downloadUrl: null,
+    externalUrl: null,
+    provider: "portal_dnl",
+    externalEnvelopeId: declaration.id,
+    externalStatus: "signed",
+    signedAt: declaration.createdAt,
+    sentAt: null,
+    expiresAt: null,
+    fileName: null,
+    createdAt: declaration.createdAt,
+  };
+}
+
+function mapSettlement(settlement: CaseSettlementRow | undefined): AdminCaseSettlement | null {
+  if (!settlement) {
+    return null;
+  }
+
+  const displayStatus = resolveSettlementDisplayStatus({
+    status: settlement.status,
+    paymentDueDate: settlement.payment_due_date,
+    paidAt: settlement.paid_at,
+  });
+
+  return {
+    id: settlement.id,
+    status: settlement.status,
+    displayStatus,
+    proposedAmountCents: settlement.proposed_amount_cents,
+    proposedAmountFormatted: formatMoney(
+      settlement.proposed_amount_cents,
+      settlement.currency,
+    ),
+    currency: settlement.currency,
+    proposalSentAt: settlement.proposal_sent_at,
+    paymentMethod: settlement.payment_method,
+    paymentDueDate: settlement.payment_due_date,
+    paymentReference: settlement.payment_reference,
+    paymentUrl: settlement.payment_url,
+    paidAmountCents: settlement.paid_amount_cents,
+    paidAmountFormatted: formatMoney(settlement.paid_amount_cents, settlement.currency),
+    paidAt: settlement.paid_at,
+    collectionsStartedAt: settlement.collections_started_at,
+    notes: settlement.notes,
+  };
+}
+
+function buildWorkflowDocuments(params: {
+  organizationId: string;
+  casePublicId: number;
+  caseDocuments: CaseDocumentRow[];
+  latestSignedDeclaration: AdminSignedDeclarationItem | null;
+  platformDocumentsByKind: Map<DocumentKind, PlatformLegalDocumentRow>;
+  visibleKinds: DocumentKind[];
+}) {
+  const documentsByKind = new Map<DocumentKind, AdminCaseWorkflowDocument>();
+
+  for (const document of params.caseDocuments.filter((item) => item.is_current)) {
+    documentsByKind.set(document.document_kind, mapCaseDocument(document, params.organizationId));
+  }
+
+  if (params.latestSignedDeclaration) {
+    documentsByKind.set("rhf", mapSignedDeclarationDocument(params.latestSignedDeclaration));
+  }
+
+  for (const kind of ["dnl_cnpj", "dnl_social_contract"] as DocumentKind[]) {
+    if (!documentsByKind.has(kind)) {
+      const platformDocument = params.platformDocumentsByKind.get(kind);
+
+      if (platformDocument) {
+        documentsByKind.set(kind, mapPlatformDocument(platformDocument));
+      }
+    }
+  }
+
+  for (const kind of params.visibleKinds) {
+    if (!documentsByKind.has(kind)) {
+      documentsByKind.set(kind, {
+        id: `missing:${kind}`,
+        kind,
+        status: "missing",
+        title: DOCUMENT_KIND_LABELS[kind],
+        source: "missing",
+        notes: null,
+        downloadUrl: null,
+        externalUrl: null,
+        provider: null,
+        externalEnvelopeId: null,
+        externalStatus: null,
+        signedAt: null,
+        sentAt: null,
+        expiresAt: null,
+        fileName: null,
+        createdAt: null,
+      });
+    }
+  }
+
+  return [...documentsByKind.values()].sort(sortDocuments);
 }
 
 function mapDetection(
@@ -512,6 +902,135 @@ function mapDetection(
       reviewedAt: detection.reviewed_at,
       latestEvidence: latestEvidence ? mapEvidence(latestEvidence) : null,
     } satisfies AdminCasePlacement,
+  };
+}
+
+function buildCaseWorkflowState(params: {
+  organizationId: string;
+  casePublicId: number;
+  detectionStatus: string;
+  workflow: CaseWorkflowRow | undefined;
+  documents: CaseDocumentRow[];
+  caseEvents: CaseEventRow[];
+  actionHistory: AdminCaseActionHistoryItem[];
+  latestSignedDeclaration: AdminSignedDeclarationItem | null;
+  settlement: CaseSettlementRow | undefined;
+  profilesById: Map<string, ProfileRow>;
+  platformDocumentsByKind: Map<DocumentKind, PlatformLegalDocumentRow>;
+}): AdminCaseWorkflowState {
+  const settlement = mapSettlement(params.settlement);
+  const stage =
+    params.workflow?.stage ??
+    inferWorkflowStageFromStatus({
+      detectionStatus: params.detectionStatus,
+      latestEventKind: params.caseEvents[0]?.event_kind,
+      settlementStatus: settlement?.displayStatus ?? settlement?.status ?? null,
+    });
+  const visibleKinds = buildCaseWorkflowReadiness({
+    stage,
+    documents: params.documents.map((document) => ({
+      kind: document.document_kind,
+      status: document.status,
+    })),
+    settlement: settlement
+      ? {
+          status: settlement.status,
+          paymentDueDate: settlement.paymentDueDate,
+          paidAt: settlement.paidAt,
+        }
+      : null,
+  }).visibleDocumentKinds;
+  const documents = buildWorkflowDocuments({
+    organizationId: params.organizationId,
+    casePublicId: params.casePublicId,
+    caseDocuments: params.documents,
+    latestSignedDeclaration: params.latestSignedDeclaration,
+    platformDocumentsByKind: params.platformDocumentsByKind,
+    visibleKinds,
+  });
+  const readiness = buildCaseWorkflowReadiness({
+    stage,
+    documents: documents.map((document) => ({
+      kind: document.kind,
+      status: document.status,
+    })),
+    settlement: settlement
+      ? {
+          status: settlement.status,
+          paymentDueDate: settlement.paymentDueDate,
+          paidAt: settlement.paidAt,
+        }
+      : null,
+  });
+  const assignedProfile = params.workflow?.assigned_to_user_id
+    ? params.profilesById.get(params.workflow.assigned_to_user_id)
+    : null;
+  const workflowEvents = params.caseEvents.map((event) => {
+    const actor = event.user_id ? params.profilesById.get(event.user_id) : null;
+
+    return {
+      id: event.id,
+      kind: event.event_kind,
+      direction: event.direction,
+      title: event.title,
+      body: event.body_snapshot,
+      notes: event.notes,
+      communicationSubject: event.communication_subject,
+      communicationBody: event.communication_body_snapshot,
+      actorName: actor?.full_name ?? actor?.email ?? null,
+      actorEmail: actor?.email ?? null,
+      occurredAt: event.occurred_at,
+      source: "workflow",
+    } satisfies AdminCaseWorkflowEvent;
+  });
+  const detectionActionEvents = params.actionHistory.map(
+    (action) =>
+      ({
+        id: `action:${action.id}`,
+        kind: action.action,
+        direction: "system",
+        title: action.action,
+        body: null,
+        notes: action.notes,
+        communicationSubject: null,
+        communicationBody: null,
+        actorName: action.actorName,
+        actorEmail: action.actorEmail,
+        occurredAt: action.createdAt,
+        source: "detection_action",
+      }) satisfies AdminCaseWorkflowEvent,
+  );
+
+  return {
+    id: params.workflow?.id ?? null,
+    stage,
+    priority: params.workflow?.priority ?? "normal",
+    assignedTo:
+      params.workflow?.assigned_to_user_id && assignedProfile
+        ? {
+            id: params.workflow.assigned_to_user_id,
+            name: assignedProfile.full_name,
+            email: assignedProfile.email,
+          }
+        : null,
+    nextAction: params.workflow?.next_action ?? null,
+    nextActionDueAt: params.workflow?.next_action_due_at ?? null,
+    notified: {
+      name: params.workflow?.notified_name ?? null,
+      email: params.workflow?.notified_email ?? null,
+      phone: params.workflow?.notified_phone ?? null,
+      document: params.workflow?.notified_document ?? null,
+      domain: params.workflow?.notified_domain ?? null,
+      websiteUrl: params.workflow?.notified_website_url ?? null,
+    },
+    summary: params.workflow?.summary ?? null,
+    documents,
+    events: [...workflowEvents, ...detectionActionEvents].sort((left, right) =>
+      compareIsoDatesDesc(left.occurredAt, right.occurredAt),
+    ),
+    settlement,
+    readiness,
+    updatedAt: params.workflow?.updated_at ?? null,
   };
 }
 
@@ -560,6 +1079,7 @@ async function buildAdminCases(filters?: {
   const supabase = await createClient();
   const organizationIds = Array.from(new Set(rows.map((item) => item.organization_id)));
   const assetIds = Array.from(new Set(rows.map((item) => item.asset_id)));
+  const casePublicIds = Array.from(new Set(rows.map((item) => item.case_public_id)));
   const detectionIds = rows.map((item) => item.id);
 
   const [
@@ -569,6 +1089,11 @@ async function buildAdminCases(filters?: {
     { data: evidences, error: evidencesError },
     { data: actions, error: actionsError },
     { data: declarations, error: declarationsError },
+    { data: workflows, error: workflowsError },
+    { data: caseDocuments, error: caseDocumentsError },
+    { data: caseEvents, error: caseEventsError },
+    { data: settlements, error: settlementsError },
+    { data: platformDocuments, error: platformDocumentsError },
   ] = await Promise.all([
     supabase
       .from("organizations")
@@ -608,6 +1133,49 @@ async function buildAdminCases(filters?: {
       .in("detection_id", detectionIds)
       .order("created_at", { ascending: false })
       .returns<RightsOwnershipConfirmationRow[]>(),
+    supabase
+      .from("case_workflows")
+      .select(
+        "id, organization_id, case_public_id, representative_detection_id, stage, priority, assigned_to_user_id, next_action, next_action_due_at, notified_name, notified_email, notified_phone, notified_document, notified_domain, notified_website_url, summary, created_at, updated_at",
+      )
+      .in("organization_id", organizationIds)
+      .in("case_public_id", casePublicIds)
+      .returns<CaseWorkflowRow[]>(),
+    supabase
+      .from("case_documents")
+      .select(
+        "id, organization_id, case_public_id, workflow_id, detection_id, rights_ownership_confirmation_id, platform_legal_document_id, document_kind, status, title, notes, storage_key, file_name, mime_type, size_bytes, external_url, provider, external_envelope_id, external_status, signed_at, sent_at, expires_at, is_current, created_at, updated_at",
+      )
+      .in("organization_id", organizationIds)
+      .in("case_public_id", casePublicIds)
+      .order("created_at", { ascending: false })
+      .returns<CaseDocumentRow[]>(),
+    supabase
+      .from("case_events")
+      .select(
+        "id, organization_id, case_public_id, workflow_id, detection_id, user_id, event_kind, direction, title, body_snapshot, notes, communication_subject, communication_body_snapshot, occurred_at, created_at",
+      )
+      .in("organization_id", organizationIds)
+      .in("case_public_id", casePublicIds)
+      .order("occurred_at", { ascending: false })
+      .returns<CaseEventRow[]>(),
+    supabase
+      .from("case_settlements")
+      .select(
+        "id, organization_id, case_public_id, workflow_id, status, proposed_amount_cents, currency, proposal_sent_at, sra_document_id, payment_method, payment_due_date, payment_reference, payment_url, paid_amount_cents, paid_at, receipt_document_id, collections_started_at, notes, created_at, updated_at",
+      )
+      .in("organization_id", organizationIds)
+      .in("case_public_id", casePublicIds)
+      .returns<CaseSettlementRow[]>(),
+    supabase
+      .from("platform_legal_documents")
+      .select(
+        "id, document_kind, title, description, storage_key, public_url, external_url, status, version_label, is_active, created_at, updated_at",
+      )
+      .eq("is_active", true)
+      .in("document_kind", ["dnl_cnpj", "dnl_social_contract", "other"])
+      .order("created_at", { ascending: false })
+      .returns<PlatformLegalDocumentRow[]>(),
   ]);
 
   if (
@@ -616,12 +1184,21 @@ async function buildAdminCases(filters?: {
     filesError ||
     evidencesError ||
     actionsError ||
-    declarationsError
+    declarationsError ||
+    workflowsError ||
+    caseDocumentsError ||
+    caseEventsError ||
+    settlementsError ||
+    platformDocumentsError
   ) {
     throw new Error("Nao foi possivel consolidar os dados dos casos.");
   }
 
-  const profileIds = uniqueStrings((actions ?? []).map((item) => item.user_id));
+  const profileIds = uniqueStrings([
+    ...(actions ?? []).map((item) => item.user_id),
+    ...(workflows ?? []).map((item) => item.assigned_to_user_id),
+    ...(caseEvents ?? []).map((item) => item.user_id),
+  ]);
   const { data: profiles, error: profilesError } = profileIds.length
     ? await supabase
         .from("profiles")
@@ -648,6 +1225,12 @@ async function buildAdminCases(filters?: {
 
   const actionsByDetectionId = new Map<string, DetectionActionRow[]>();
   const declarationsByDetectionId = new Map<string, AdminSignedDeclarationItem[]>();
+  const workflowsByCaseKey = new Map<string, CaseWorkflowRow>();
+  const documentsByCaseKey = new Map<string, CaseDocumentRow[]>();
+  const eventsByCaseKey = new Map<string, CaseEventRow[]>();
+  const settlementsByCaseKey = new Map<string, CaseSettlementRow>();
+  const platformDocumentsByKind = new Map<DocumentKind, PlatformLegalDocumentRow>();
+
   for (const action of actions ?? []) {
     const current = actionsByDetectionId.get(action.detection_id) ?? [];
     current.push(action);
@@ -674,6 +1257,52 @@ async function buildAdminCases(filters?: {
     declarationsByDetectionId.set(declaration.detection_id, current);
   }
 
+  for (const workflow of workflows ?? []) {
+    workflowsByCaseKey.set(
+      buildCaseKey({
+        organizationId: workflow.organization_id,
+        casePublicId: workflow.case_public_id,
+      }),
+      workflow,
+    );
+  }
+
+  for (const document of caseDocuments ?? []) {
+    const caseKey = buildCaseKey({
+      organizationId: document.organization_id,
+      casePublicId: document.case_public_id,
+    });
+    const current = documentsByCaseKey.get(caseKey) ?? [];
+    current.push(document);
+    documentsByCaseKey.set(caseKey, current);
+  }
+
+  for (const event of caseEvents ?? []) {
+    const caseKey = buildCaseKey({
+      organizationId: event.organization_id,
+      casePublicId: event.case_public_id,
+    });
+    const current = eventsByCaseKey.get(caseKey) ?? [];
+    current.push(event);
+    eventsByCaseKey.set(caseKey, current);
+  }
+
+  for (const settlement of settlements ?? []) {
+    settlementsByCaseKey.set(
+      buildCaseKey({
+        organizationId: settlement.organization_id,
+        casePublicId: settlement.case_public_id,
+      }),
+      settlement,
+    );
+  }
+
+  for (const document of platformDocuments ?? []) {
+    if (!platformDocumentsByKind.has(document.document_kind)) {
+      platformDocumentsByKind.set(document.document_kind, document);
+    }
+  }
+
   const groupedCases = new Map<
     string,
     {
@@ -693,7 +1322,10 @@ async function buildAdminCases(filters?: {
       filesByAssetId.get(row.asset_id),
       latestEvidenceByDetectionId.get(row.id),
     );
-    const caseKey = `${row.organization_id}:${row.case_public_id}`;
+    const caseKey = buildCaseKey({
+      organizationId: row.organization_id,
+      casePublicId: row.case_public_id,
+    });
     const current = groupedCases.get(caseKey) ?? {
       casePublicId: row.case_public_id,
       organization: mapped.organization,
@@ -788,6 +1420,8 @@ async function buildAdminCases(filters?: {
       const signedDeclarations = [...group.declarations].sort((left, right) =>
         compareIsoDatesDesc(left.createdAt, right.createdAt),
       );
+      const latestSignedDeclaration = signedDeclarations[0] ?? null;
+      const caseStatus = resolveCaseStatus(placements.map((placement) => placement.status));
 
       return {
         key: caseKey,
@@ -811,7 +1445,7 @@ async function buildAdminCases(filters?: {
           representative.latestEvidence?.matchedImageSourceUrl ??
           representative.matchedImageUrl,
         screenshotUrl: representative.latestEvidence?.screenshotUrl ?? null,
-        status: resolveCaseStatus(placements.map((placement) => placement.status)),
+        status: caseStatus,
         firstSeenAt: placements.reduce(
           (current, placement) => pickEarliestIsoDate(current, placement.firstSeenAt),
           representative.firstSeenAt,
@@ -852,9 +1486,22 @@ async function buildAdminCases(filters?: {
               reason: latestAction.reason,
             }
           : null,
-        latestSignedDeclaration: signedDeclarations[0] ?? null,
+        latestSignedDeclaration,
         signedDeclarations,
         actionHistory,
+        workflow: buildCaseWorkflowState({
+          organizationId: group.organization.id,
+          casePublicId: group.casePublicId,
+          detectionStatus: caseStatus,
+          workflow: workflowsByCaseKey.get(caseKey),
+          documents: documentsByCaseKey.get(caseKey) ?? [],
+          caseEvents: eventsByCaseKey.get(caseKey) ?? [],
+          actionHistory,
+          latestSignedDeclaration,
+          settlement: settlementsByCaseKey.get(caseKey),
+          profilesById,
+          platformDocumentsByKind,
+        }),
         pages,
         placements,
       } satisfies AdminCaseListItem;
@@ -872,4 +1519,35 @@ export async function getAdminCaseDetails(
 ): Promise<AdminCaseDetails | null> {
   const cases = await buildAdminCases({ organizationId, casePublicId });
   return cases[0] ?? null;
+}
+
+export async function getAdminCaseDocumentStorageKey(params: {
+  organizationId: string;
+  casePublicId: number;
+  documentId: string;
+}) {
+  await requirePanelAccess("admin");
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("case_documents")
+    .select("id, storage_key, mime_type, file_name")
+    .eq("organization_id", params.organizationId)
+    .eq("case_public_id", params.casePublicId)
+    .eq("id", params.documentId)
+    .maybeSingle<{
+      id: string;
+      storage_key: string | null;
+      mime_type: string | null;
+      file_name: string | null;
+    }>();
+
+  if (error || !data?.storage_key) {
+    return null;
+  }
+
+  return {
+    storageKey: data.storage_key,
+    mimeType: data.mime_type ?? "application/octet-stream",
+    fileName: data.file_name ?? `documento-${params.documentId}`,
+  };
 }

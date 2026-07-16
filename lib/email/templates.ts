@@ -25,6 +25,15 @@ type ContactLeadEmailParams = {
   message: string;
 };
 
+type CaseCommunicationEmailParams = {
+  subject: string;
+  body: string;
+  casePublicIdLabel: string;
+  clientName: string;
+  domain: string;
+  sourceUrl: string;
+};
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -178,6 +187,42 @@ export function buildContactLeadEmail({
         <p style="margin:20px 0 8px;"><strong>Mensagem:</strong></p>
         <div style="padding:18px;border-radius:18px;background:#f8fafc;border:1px solid rgba(15,23,42,0.08);white-space:pre-wrap;">${escapeHtml(message)}</div>
       `,
+    }),
+  };
+}
+
+export function buildCaseCommunicationEmail({
+  subject,
+  body,
+  casePublicIdLabel,
+  clientName,
+  domain,
+  sourceUrl,
+}: CaseCommunicationEmailParams): EmailContent {
+  const escapedBody = escapeHtml(body);
+  const textHeader = [
+    `Caso: ${casePublicIdLabel}`,
+    `Cliente: ${clientName}`,
+    `Dominio: ${domain}`,
+    `URL: ${sourceUrl}`,
+    "",
+  ].join("\n");
+
+  return {
+    subject,
+    text: `${textHeader}${body}`,
+    html: createEmailLayout({
+      eyebrow: `Caso ${casePublicIdLabel}`,
+      title: subject,
+      body: `
+        <div style="margin:0 0 18px;padding:14px 16px;border-radius:16px;background:#f8fafc;border:1px solid rgba(15,23,42,0.08);font-size:13px;line-height:1.7;color:#475569;">
+          <strong>Cliente:</strong> ${escapeHtml(clientName)}<br>
+          <strong>Domínio:</strong> ${escapeHtml(domain)}<br>
+          <strong>URL:</strong> ${escapeHtml(sourceUrl)}
+        </div>
+        <div style="white-space:pre-wrap;">${escapedBody}</div>
+      `,
+      note: "Esta mensagem foi registrada no histórico operacional do caso na Direito na Lente.",
     }),
   };
 }

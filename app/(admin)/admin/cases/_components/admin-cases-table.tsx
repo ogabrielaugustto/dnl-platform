@@ -33,6 +33,12 @@ import {
   getDetectionStatusVariant,
   getEvidenceCoverageVariant,
 } from "@/lib/detection-ui";
+import {
+  DOCUMENT_KIND_LABELS,
+  SETTLEMENT_STATUS_LABELS,
+  WORKFLOW_STAGE_LABELS,
+  type DocumentKind,
+} from "@/lib/admin-case-workflow";
 import { formatPublicId } from "@/lib/public-id";
 
 type AdminCaseTableRow = {
@@ -80,6 +86,30 @@ type AdminCaseTableRow = {
     notes: string | null;
     reason: string | null;
   } | null;
+  workflow: {
+    stage: string;
+    priority: "low" | "normal" | "high" | "urgent";
+    nextAction: string | null;
+    nextActionDueAt: string | null;
+    assignedTo: {
+      name: string | null;
+      email: string | null;
+    } | null;
+    notified: {
+      name: string | null;
+      email: string | null;
+      domain: string | null;
+    };
+    readiness: {
+      canSendDocumentation: boolean;
+      missingDocumentationKinds: DocumentKind[];
+      settlementStatus: string | null;
+    };
+    settlement: {
+      displayStatus: string;
+      paymentDueDate: string | null;
+    } | null;
+  };
   placements: Array<{
     id: string;
     publicId: number;
@@ -105,6 +135,10 @@ type FilterState = {
   status: string;
   evidenceCoverage: string;
   latestAction: string;
+  workflowStage: string;
+  documentReadiness: string;
+  priority: string;
+  nextAction: string;
 };
 
 const defaultFilters: FilterState = {
@@ -117,6 +151,10 @@ const defaultFilters: FilterState = {
   status: "all",
   evidenceCoverage: "all",
   latestAction: "all",
+  workflowStage: "all",
+  documentReadiness: "all",
+  priority: "all",
+  nextAction: "",
 };
 
 function formatDate(value: string | null) {
@@ -152,6 +190,39 @@ function formatActionLabel(value: string) {
       return "Marcado como uso autorizado";
     default:
       return value.replaceAll("_", " ");
+  }
+}
+
+function formatWorkflowStage(value: string) {
+  return WORKFLOW_STAGE_LABELS[value as keyof typeof WORKFLOW_STAGE_LABELS] ?? value;
+}
+
+function formatSettlementStatus(value: string | null) {
+  if (!value) {
+    return "Sem negociacao";
+  }
+
+  return SETTLEMENT_STATUS_LABELS[value as keyof typeof SETTLEMENT_STATUS_LABELS] ?? value;
+}
+
+function formatDocumentMissing(values: DocumentKind[]) {
+  if (values.length === 0) {
+    return "Documentos prontos";
+  }
+
+  return values.map((value) => DOCUMENT_KIND_LABELS[value]).join(", ");
+}
+
+function formatPriority(value: "low" | "normal" | "high" | "urgent") {
+  switch (value) {
+    case "urgent":
+      return "Urgente";
+    case "high":
+      return "Alta";
+    case "low":
+      return "Baixa";
+    case "normal":
+      return "Normal";
   }
 }
 
@@ -251,6 +322,16 @@ function AdminCasePreviewSheet({
               <div className="flex flex-wrap gap-2">
                 <Badge variant={getDetectionStatusVariant(row.status)}>
                   {formatDetectionStatus(row.status)}
+                </Badge>
+                <Badge variant="outline">{formatWorkflowStage(row.workflow.stage)}</Badge>
+                <Badge
+                  variant={
+                    row.workflow.readiness.canSendDocumentation ? "secondary" : "destructive"
+                  }
+                >
+                  {row.workflow.readiness.canSendDocumentation
+                    ? "Docs prontos"
+                    : "Docs pendentes"}
                 </Badge>
                 <Badge variant={getEvidenceCoverageVariant(row.evidenceCoverage)}>
                   {formatEvidenceCoverage(row.evidenceCoverage)}
@@ -361,6 +442,30 @@ function AdminCasePreviewSheet({
                 </div>
               </div>
 
+              <div className="rounded-lg border border-border bg-card/70 p-3">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                  Jornada
+                </p>
+                <div className="mt-3 space-y-2 text-sm">
+                  <p>
+                    <span className="font-medium text-foreground">Etapa:</span>{" "}
+                    {formatWorkflowStage(row.workflow.stage)}
+                  </p>
+                  <p>
+                    <span className="font-medium text-foreground">Proxima acao:</span>{" "}
+                    {row.workflow.nextAction ?? "Nao definida"}
+                  </p>
+                  <p>
+                    <span className="font-medium text-foreground">Documentos:</span>{" "}
+                    {formatDocumentMissing(row.workflow.readiness.missingDocumentationKinds)}
+                  </p>
+                  <p>
+                    <span className="font-medium text-foreground">Negociacao:</span>{" "}
+                    {formatSettlementStatus(row.workflow.settlement?.displayStatus ?? null)}
+                  </p>
+                </div>
+              </div>
+
               <div className="flex flex-wrap gap-2 pt-1">
                 <Button asChild size="sm">
                   <Link href={`/admin/cases/${row.organization.id}/${row.publicId}`}>
@@ -466,6 +571,48 @@ export function AdminCasesTable({ rows }: AdminCasesTableProps) {
       if (
         filters.latestAction !== "all" &&
         (row.latestAction?.action ?? "sem_historico") !== filters.latestAction
+      ) {
+        return false;
+      }
+
+      if (filters.workflowStage !== "all" && row.workflow.stage !== filters.workflowStage) {
+        return false;
+      }
+
+      if (filters.priority !== "all" && row.workflow.priority !== filters.priority) {
+        return false;
+      }
+
+      if (
+        filters.documentReadiness === "ready" &&
+        !row.workflow.readiness.canSendDocumentation
+      ) {
+        return false;
+      }
+
+      if (
+        filters.documentReadiness === "missing" &&
+        row.workflow.readiness.canSendDocumentation
+      ) {
+        return false;
+      }
+
+      if (
+        filters.documentReadiness === "overdue" &&
+        row.workflow.settlement?.displayStatus !== "overdue"
+      ) {
+        return false;
+      }
+
+      if (
+        ![
+          row.workflow.nextAction,
+          row.workflow.assignedTo?.name,
+          row.workflow.assignedTo?.email,
+          row.workflow.notified.name,
+          row.workflow.notified.email,
+          row.workflow.notified.domain,
+        ].some((value) => includesNormalized(value, filters.nextAction))
       ) {
         return false;
       }
@@ -668,6 +815,58 @@ export function AdminCasesTable({ rows }: AdminCasesTableProps) {
                   ]}
                 />
               </div>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <FilterSelect
+                  label="Etapa"
+                  value={filters.workflowStage}
+                  onValueChange={(value) => updateFilter("workflowStage", value)}
+                  items={[
+                    ["all", "Todas as etapas"],
+                    ["documents", "Documentos"],
+                    ["first_notice", "PD"],
+                    ["documentation_notice", "Documentacao"],
+                    ["treatment", "Tratativas"],
+                    ["negotiation", "Negociacao"],
+                    ["agreement_signature", "Assinatura SRA"],
+                    ["payment", "Pagamento"],
+                    ["collections", "Cobranca"],
+                    ["legal", "Juridico"],
+                    ["closed", "Encerrado"],
+                  ]}
+                />
+                <FilterSelect
+                  label="Prontidao"
+                  value={filters.documentReadiness}
+                  onValueChange={(value) => updateFilter("documentReadiness", value)}
+                  items={[
+                    ["all", "Todos"],
+                    ["ready", "Documentos prontos"],
+                    ["missing", "Documentos pendentes"],
+                    ["overdue", "Pagamento vencido"],
+                  ]}
+                />
+                <FilterSelect
+                  label="Prioridade"
+                  value={filters.priority}
+                  onValueChange={(value) => updateFilter("priority", value)}
+                  items={[
+                    ["all", "Todas"],
+                    ["urgent", "Urgente"],
+                    ["high", "Alta"],
+                    ["normal", "Normal"],
+                    ["low", "Baixa"],
+                  ]}
+                />
+                <div className="xl:col-span-2">
+                  <FilterInput
+                    label="Proxima acao / notificado"
+                    value={filters.nextAction}
+                    onChange={(value) => updateFilter("nextAction", value)}
+                    placeholder="Responsavel, e-mail, dominio ou pendencia"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -703,7 +902,7 @@ export function AdminCasesTable({ rows }: AdminCasesTableProps) {
                       <span>Cliente</span>
                       <span>Pagina / dominio</span>
                       <span>Status</span>
-                      <span>Escopo</span>
+                      <span>Jornada</span>
                       <span>Acoes</span>
                     </div>
 
@@ -751,15 +950,23 @@ export function AdminCasesTable({ rows }: AdminCasesTableProps) {
                             <Badge variant={getDetectionStatusVariant(row.status)}>
                               {formatDetectionStatus(row.status)}
                             </Badge>
+                            <Badge variant="outline">{formatWorkflowStage(row.workflow.stage)}</Badge>
                             <Badge variant={getEvidenceCoverageVariant(row.evidenceCoverage)}>
                               {formatEvidenceCoverage(row.evidenceCoverage)}
                             </Badge>
                           </div>
 
                           <div className="text-sm text-muted-foreground">
-                            <p className="font-medium text-foreground">{row.pagesCount} pagina(s)</p>
+                            <p className="font-medium text-foreground">
+                              {formatPriority(row.workflow.priority)}
+                            </p>
+                            <p className="mt-1 line-clamp-2">
+                              {row.workflow.nextAction ?? "Sem proxima acao"}
+                            </p>
                             <p className="mt-1">
-                              {row.capturedEvidenceCount}/{row.placementsCount} com captura
+                              {row.workflow.readiness.canSendDocumentation
+                                ? "Docs prontos"
+                                : `${row.workflow.readiness.missingDocumentationKinds.length} doc(s) pendente(s)`}
                             </p>
                           </div>
 

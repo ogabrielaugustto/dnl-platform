@@ -1,5 +1,8 @@
 import { Badge } from "@/components/ui/badge";
-import { getPlatformContactSettings } from "@/lib/dal/admin-platform";
+import {
+  getPlatformContactSettings,
+  getPlatformGeneralSettings,
+} from "@/lib/dal/admin-platform";
 import { listAdminPlans } from "@/lib/dal/admin-plans";
 import {
   listAdminOrganizations,
@@ -7,16 +10,21 @@ import {
 } from "@/lib/dal/admin-management";
 import { AdminPlatformTabs } from "./_components/admin-platform-tabs";
 
-type PlatformTab = "plans" | "users" | "contact";
+type PlatformTab = "general" | "plans" | "users" | "contact";
 
 function parseDefaultTab(value: string | string[] | undefined): PlatformTab {
   const candidate = Array.isArray(value) ? value[0] : value;
 
-  if (candidate === "users" || candidate === "contact") {
+  if (
+    candidate === "general" ||
+    candidate === "plans" ||
+    candidate === "users" ||
+    candidate === "contact"
+  ) {
     return candidate;
   }
 
-  return "plans";
+  return "general";
 }
 
 export default async function AdminPlatformPage({
@@ -25,12 +33,14 @@ export default async function AdminPlatformPage({
   searchParams?: Promise<{ tab?: string | string[] }>;
 }) {
   const params = await searchParams;
-  const [plans, contactSettings, users, organizations] = await Promise.all([
-    listAdminPlans(),
-    getPlatformContactSettings(),
-    listAdminUsers("internal"),
-    listAdminOrganizations(),
-  ]);
+  const [plans, generalSettings, contactSettings, users, organizations] =
+    await Promise.all([
+      listAdminPlans(),
+      getPlatformGeneralSettings(),
+      getPlatformContactSettings(),
+      listAdminUsers("internal"),
+      listAdminOrganizations(),
+    ]);
   const activePlans = plans.filter((plan) => plan.isActive).length;
   const activeUsers = users.filter((user) => user.isActive).length;
 
@@ -45,10 +55,14 @@ export default async function AdminPlatformPage({
             Plataforma
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Configure areas internas da plataforma, como planos comerciais e canais publicos de contato.
+            Configure informacoes institucionais, planos comerciais, usuarios
+            internos e canais publicos de contato.
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Badge variant="outline">
+            {generalSettings.tradeName ?? "DNL"} configurada
+          </Badge>
           <Badge variant="outline">{plans.length} plano(s)</Badge>
           <Badge variant="secondary">{activePlans} ativo(s)</Badge>
           <Badge variant="outline">{users.length} usuario(s)</Badge>
@@ -59,6 +73,7 @@ export default async function AdminPlatformPage({
       <AdminPlatformTabs
         contactSettings={contactSettings}
         defaultTab={parseDefaultTab(params?.tab)}
+        generalSettings={generalSettings}
         organizations={organizations}
         plans={plans}
         users={users}
