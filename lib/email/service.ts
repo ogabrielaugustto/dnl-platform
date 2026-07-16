@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 import { Resend } from "resend";
 import {
+  buildCaseCommunicationEmail,
   buildContactLeadEmail,
   buildPasswordRecoveryEmail,
   buildWelcomeEmail,
@@ -151,5 +152,42 @@ export async function sendContactLeadEmail({
     html: content.html,
     text: content.text,
     replyTo: email,
+  });
+}
+
+export async function sendCaseCommunicationEmail({
+  to,
+  subject,
+  body,
+  casePublicIdLabel,
+  clientName,
+  domain,
+  sourceUrl,
+  replyTo,
+}: {
+  to: string;
+  subject: string;
+  body: string;
+  casePublicIdLabel: string;
+  clientName: string;
+  domain: string;
+  sourceUrl: string;
+  replyTo?: string | null;
+}) {
+  const content = buildCaseCommunicationEmail({
+    subject,
+    body,
+    casePublicIdLabel,
+    clientName,
+    domain,
+    sourceUrl,
+  });
+
+  await sendEmail({
+    to,
+    subject: content.subject,
+    html: content.html,
+    text: content.text,
+    replyTo: replyTo ?? undefined,
   });
 }

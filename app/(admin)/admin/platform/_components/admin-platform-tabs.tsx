@@ -1,10 +1,18 @@
 "use client";
 
-import { MailIcon, PanelsTopLeftIcon, UsersRoundIcon } from "lucide-react";
+import {
+  Building2Icon,
+  MailIcon,
+  PanelsTopLeftIcon,
+  UsersRoundIcon,
+} from "lucide-react";
 import { InviteUserDialog } from "../../users/_components/invite-user-dialog";
 import { AdminUsersTable } from "../../users/_components/admin-users-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { AdminPlatformContactSettings } from "@/lib/dal/admin-platform";
+import type {
+  AdminPlatformContactSettings,
+  AdminPlatformGeneralSettings,
+} from "@/lib/dal/admin-platform";
 import type { AdminPlanListItem } from "@/lib/dal/admin-plans";
 import type {
   AdminOrganizationListItem,
@@ -12,10 +20,12 @@ import type {
 } from "@/lib/dal/admin-management";
 import { AdminPlansTable } from "../../plans/_components/admin-plans-table";
 import { AdminPlatformContactForm } from "./admin-platform-contact-form";
+import { AdminPlatformGeneralForm } from "./admin-platform-general-form";
 
 type AdminPlatformTabsProps = {
   contactSettings: AdminPlatformContactSettings;
-  defaultTab: "plans" | "users" | "contact";
+  defaultTab: "general" | "plans" | "users" | "contact";
+  generalSettings: AdminPlatformGeneralSettings;
   organizations: AdminOrganizationListItem[];
   plans: AdminPlanListItem[];
   users: AdminUserListItem[];
@@ -24,6 +34,7 @@ type AdminPlatformTabsProps = {
 export function AdminPlatformTabs({
   contactSettings,
   defaultTab,
+  generalSettings,
   organizations,
   plans,
   users,
@@ -31,6 +42,10 @@ export function AdminPlatformTabs({
   return (
     <Tabs defaultValue={defaultTab} className="w-full gap-5">
       <TabsList className="h-10 w-fit overflow-visible">
+        <TabsTrigger className="px-3" value="general">
+          <Building2Icon className="size-4" />
+          Geral
+        </TabsTrigger>
         <TabsTrigger className="px-3" value="plans">
           <PanelsTopLeftIcon className="size-4" />
           Planos
@@ -44,6 +59,10 @@ export function AdminPlatformTabs({
           Contato
         </TabsTrigger>
       </TabsList>
+
+      <TabsContent value="general">
+        <AdminPlatformGeneralForm settings={generalSettings} />
+      </TabsContent>
 
       <TabsContent value="plans">
         <AdminPlansTable rows={plans} />

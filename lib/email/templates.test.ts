@@ -50,3 +50,48 @@ test("buildPasswordRecoveryEmail keeps the secure recovery CTA and support fallb
   assert.match(email.html, /token_hash=abc/);
   assert.match(email.text, /https:\/\/app\.example\.com\/contato/);
 });
+
+test("buildCaseCommunicationEmail wraps a case message without placeholders", async () => {
+  const [{ buildCaseCommunicationSnapshot }, { buildCaseCommunicationEmail }] =
+    await Promise.all([
+      import(new URL("../admin-case-workflow.ts", import.meta.url).href),
+      import(new URL("./templates.ts", import.meta.url).href),
+    ]);
+  const kinds = [
+    "first_notice",
+    "documentation_notice",
+    "c1",
+    "c1p",
+    "c2",
+    "negotiation",
+  ] as const;
+
+  for (const kind of kinds) {
+    const snapshot = buildCaseCommunicationSnapshot(kind, {
+      casePublicId: 123,
+      clientName: "Cliente Exemplo",
+      domain: "example.com",
+      sourceUrl: "https://example.com/noticia",
+      finalUrl: "https://example.com/noticia",
+      assetTitle: "Foto editorial",
+      notifiedName: "Empresa Notificada",
+      notifiedEmail: "juridico@example.com",
+      amountFormatted: "R$ 1.000,00",
+      portalReference: "000123",
+    });
+    const email = buildCaseCommunicationEmail({
+      subject: snapshot.subject,
+      body: snapshot.body,
+      casePublicIdLabel: "000123",
+      clientName: "Cliente Exemplo",
+      domain: "example.com",
+      sourceUrl: "https://example.com/noticia",
+    });
+
+    assert.match(email.subject, /000123|caso/i);
+    assert.match(email.html, /example\.com/);
+    assert.match(email.html, /Foto editorial|caso|noticia/i);
+    assert.match(email.text, /https:\/\/example\.com\/noticia/);
+    assert.doesNotMatch(email.html, /\[|\]|\{|\}|PREENCHER|NOME COMPLETO/);
+  }
+});

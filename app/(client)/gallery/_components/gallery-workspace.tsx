@@ -16,6 +16,7 @@ import {
   createAssetBatchAction,
   type AssetBatchActionState,
 } from "@/app/actions/assets";
+import { ClientRepresentationRequiredDialog } from "@/app/(client)/gallery/_components/client-representation-required-dialog";
 import { AssetFolderFilter } from "@/app/(client)/gallery/_components/asset-folder-filter";
 import { AssetFolderForm } from "@/app/(client)/gallery/_components/asset-folder-form";
 import { AssetGalleryTile } from "@/app/(client)/gallery/_components/asset-gallery-tile";
@@ -31,6 +32,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import type {
+  ClientRepresentationDefaults,
+  ClientRepresentationUploadGate,
+} from "@/lib/dal/client-representation-documents";
 import type { AssetFolderListItem, AssetListItem } from "@/lib/dal/assets";
 import { cn } from "@/lib/utils";
 
@@ -122,6 +127,8 @@ export function GalleryWorkspace({
   totalAssetsCount,
   unassignedCount,
   flashMessage,
+  representationDefaults,
+  representationGate,
 }: {
   assets: AssetListItem[];
   folders: AssetFolderListItem[];
@@ -131,6 +138,8 @@ export function GalleryWorkspace({
   totalAssetsCount: number;
   unassignedCount: number;
   flashMessage: string | null;
+  representationDefaults: ClientRepresentationDefaults;
+  representationGate: ClientRepresentationUploadGate;
 }) {
   const [state, action, pending] = useActionState(
     createAssetBatchAction,
@@ -140,6 +149,8 @@ export function GalleryWorkspace({
   const filesRef = useRef<SelectedFile[]>([]);
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [representationDialogDismissed, setRepresentationDialogDismissed] =
+    useState(false);
   const fileInputId = useId();
   const uploadFormId = useId();
 
@@ -256,6 +267,8 @@ export function GalleryWorkspace({
       ? "Sem pasta"
       : "Todas as imagens";
   const hasItems = files.length > 0 || assets.length > 0;
+  const representationDialogOpen =
+    state.status === "signature_required" && !representationDialogDismissed;
 
   return (
     <section
@@ -272,7 +285,11 @@ export function GalleryWorkspace({
       }}
       onDrop={handleDrop}
     >
-      <form id={uploadFormId} action={action}>
+      <form
+        id={uploadFormId}
+        action={action}
+        onSubmit={() => setRepresentationDialogDismissed(false)}
+      >
         <input type="hidden" name="existingFolderId" value={activeFolderId ?? ""} />
         <input type="hidden" name="newFolderName" value="" />
         <input type="hidden" name="newFolderDescription" value="" />
@@ -395,7 +412,18 @@ export function GalleryWorkspace({
         )}
       </div>
 
-      {state.message ? (
+      <ClientRepresentationRequiredDialog
+        defaults={representationDefaults}
+        gate={representationGate}
+        open={representationDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRepresentationDialogDismissed(true);
+          }
+        }}
+      />
+
+      {state.message && state.status !== "signature_required" ? (
         <div className="fixed inset-x-4 bottom-24 z-40 mx-auto max-w-xl rounded-lg border border-destructive/25 bg-background px-4 py-3 shadow-lg md:bottom-24">
           <FieldError>{state.message}</FieldError>
         </div>

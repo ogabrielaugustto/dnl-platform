@@ -5,6 +5,10 @@ import {
   listOrganizationAssets,
   requireActiveOrganization,
 } from "@/lib/dal/assets";
+import {
+  getClientRepresentationDefaults,
+  getClientRepresentationUploadGate,
+} from "@/lib/dal/client-representation-documents";
 
 type AssetsPageProps = {
   searchParams: Promise<{
@@ -35,18 +39,21 @@ function buildFlashMessage(params: Awaited<AssetsPageProps["searchParams"]>) {
 
 export default async function GalleryPage({ searchParams }: AssetsPageProps) {
   const params = await searchParams;
-  const { organizationId } = await requireActiveOrganization();
+  const { organizationId, userId } = await requireActiveOrganization();
   const activeFolderId =
     params.folder && params.folder !== "unassigned" ? params.folder : null;
   const unassignedSelected = params.folder === "unassigned";
-  const [assets, allAssets, folders] = await Promise.all([
-    listOrganizationAssets({
-      folderId: activeFolderId,
-      includeUnassigned: unassignedSelected,
-    }),
-    listOrganizationAssets(),
-    listOrganizationAssetFolders(),
-  ]);
+  const [assets, allAssets, folders, representationGate, representationDefaults] =
+    await Promise.all([
+      listOrganizationAssets({
+        folderId: activeFolderId,
+        includeUnassigned: unassignedSelected,
+      }),
+      listOrganizationAssets(),
+      listOrganizationAssetFolders(),
+      getClientRepresentationUploadGate(organizationId),
+      getClientRepresentationDefaults({ organizationId, userId }),
+    ]);
   const flashMessage = buildFlashMessage(params);
   const totalAssetsCount = allAssets.length;
   const unassignedCount = allAssets.filter((asset) => !asset.folder).length;
@@ -73,6 +80,8 @@ export default async function GalleryPage({ searchParams }: AssetsPageProps) {
         totalAssetsCount={totalAssetsCount}
         unassignedCount={unassignedCount}
         flashMessage={flashMessage}
+        representationDefaults={representationDefaults}
+        representationGate={representationGate}
       />
     </>
   );
