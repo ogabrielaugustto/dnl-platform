@@ -3,6 +3,8 @@ import test from "node:test";
 
 const {
   formatCpf,
+  formatCpfInput,
+  isValidCpf,
   normalizeCpf,
   validateClientLegalProfile,
 } = await import(new URL("./client-legal-profile.ts", import.meta.url).href);
@@ -48,4 +50,8 @@ test("rejects invalid cpf values for the client legal profile", () => {
 test("normalizes and formats cpf helper values", () => {
   assert.equal(normalizeCpf("123.456.789-09"), "12345678909");
   assert.equal(formatCpf("12345678909"), "123.456.789-09");
+  assert.equal(formatCpfInput("123456789099999"), "123.456.789-09");
+  assert.equal(formatCpfInput("123abc4567"), "123.456.7");
+  assert.equal(isValidCpf("123.456.789-09"), true);
+  assert.equal(isValidCpf("111.111.111-11"), false);
 });

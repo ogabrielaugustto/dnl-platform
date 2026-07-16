@@ -2,6 +2,8 @@
 
 import { useActionState, useMemo, useState } from "react";
 import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
   CheckCircle2Icon,
   CircleIcon,
   FileSignatureIcon,
@@ -37,7 +39,12 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { buildRightsOwnershipConfirmationDocument } from "@/lib/rights-ownership-confirmation";
-import { validateClientLegalProfile } from "@/lib/client-legal-profile";
+import {
+  formatCpfInput,
+  isValidCpf,
+  normalizeCpf,
+  validateClientLegalProfile,
+} from "@/lib/client-legal-profile";
 import { cn } from "@/lib/utils";
 
 type IncidentActionsPanelProps = {
@@ -72,13 +79,15 @@ type DecisionOption = {
   icon: LucideIcon;
 };
 
+type UnauthorizedDecisionStep = "review" | "signer" | "confirm";
+
 const initialActionState: DetectionDecisionActionState = {};
 
 const decisionOptions: DecisionOption[] = [
   {
     nextStatus: "ignored",
-    label: "Nao e a mesma imagem",
-    description: "Use quando a pagina encontrada nao corresponde a imagem original.",
+    label: "Não é a mesma imagem",
+    description: "Use quando a página encontrada não corresponde à imagem original.",
     reason: "not_same_image",
     tone: "neutral",
     icon: XCircleIcon,
@@ -86,13 +95,13 @@ const decisionOptions: DecisionOption[] = [
   {
     nextStatus: "authorized",
     label: "Uso autorizado",
-    description: "Use quando este uso ja tem permissao, contrato ou contexto esperado.",
+    description: "Use quando este uso já tem permissão, contrato ou contexto esperado.",
     tone: "positive",
     icon: ShieldCheckIcon,
   },
   {
     nextStatus: "unauthorized",
-    label: "Uso nao autorizado",
+    label: "Uso não autorizado",
     description: "Use quando este grupo deve virar um caso para acompanhamento da equipe DNL.",
     tone: "destructive",
     icon: ShieldAlertIcon,
@@ -122,8 +131,8 @@ function getDecisionSummary(currentStatus: string) {
     case "ignored":
       return {
         badgeVariant: "outline" as const,
-        title: "Marcado como nao e a mesma imagem",
-        description: "Este grupo foi removido do acompanhamento como ocorrencia valida.",
+        title: "Marcado como não é a mesma imagem",
+        description: "Este grupo foi removido do acompanhamento como ocorrência válida.",
       };
     case "authorized":
       return {
@@ -134,8 +143,8 @@ function getDecisionSummary(currentStatus: string) {
     case "unauthorized":
       return {
         badgeVariant: "destructive" as const,
-        title: "Marcado como uso nao autorizado",
-        description: "Este grupo segue para a equipe DNL analisar o caso e definir os proximos passos.",
+        title: "Marcado como uso não autorizado",
+        description: "Este grupo segue para a equipe DNL analisar o caso e definir os próximos passos.",
       };
     default:
       return null;
@@ -156,8 +165,20 @@ function getOptionClasses(tone: DecisionOption["tone"], selected: boolean) {
   }
 
   return selected
-    ? "border-foreground bg-muted text-foreground hover:bg-muted"
-    : "border-border bg-background text-foreground hover:border-foreground/30 hover:bg-muted/40";
+    ? "border-amber-500 bg-amber-500/12 text-amber-950 hover:bg-amber-500/16 dark:text-amber-100"
+    : "border-border bg-background text-foreground hover:border-amber-400/70 hover:bg-amber-500/5";
+}
+
+function getOptionIconClasses(tone: DecisionOption["tone"]) {
+  if (tone === "positive") {
+    return "text-emerald-600 dark:text-emerald-400";
+  }
+
+  if (tone === "destructive") {
+    return "text-destructive";
+  }
+
+  return "text-amber-500 dark:text-amber-400";
 }
 
 function PendingSubmitButton(props: {
@@ -193,13 +214,17 @@ function DecisionCard(props: {
       <input type="hidden" name="nextStatus" value={props.option.nextStatus} />
       <input type="hidden" name="scope" value="incident" />
       <input type="hidden" name="redirectTo" value={props.redirectTo} />
-      {props.option.reason ? <input type="hidden" name="reason" value={props.option.reason} /> : null}
+      {props.option.reason ? (
+        <input type="hidden" name="reason" value={props.option.reason} />
+      ) : null}
       <PendingSubmitButton
         className={getOptionClasses(props.option.tone, props.selected)}
         selected={props.selected}
       >
         <div className="flex w-full items-start gap-3">
-          <props.option.icon className="mt-0.5 size-5 shrink-0" />
+          <props.option.icon
+            className={cn("mt-0.5 size-5 shrink-0", getOptionIconClasses(props.option.tone))}
+          />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold">{props.option.label}</span>
@@ -212,9 +237,16 @@ function DecisionCard(props: {
             <p className="mt-1 text-sm opacity-80">{props.option.description}</p>
           </div>
           {props.selected ? (
-            <CheckCircle2Icon className="mt-0.5 size-5 shrink-0" />
+            <CheckCircle2Icon
+              className={cn("mt-0.5 size-5 shrink-0", getOptionIconClasses(props.option.tone))}
+            />
           ) : (
-            <CircleIcon className="mt-0.5 size-5 shrink-0 opacity-50" />
+            <CircleIcon
+              className={cn(
+                "mt-0.5 size-5 shrink-0 opacity-70",
+                getOptionIconClasses(props.option.tone),
+              )}
+            />
           )}
         </div>
       </PendingSubmitButton>
@@ -229,6 +261,65 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+const unauthorizedDecisionSteps: Array<{
+  id: UnauthorizedDecisionStep;
+  label: string;
+}> = [
+  { id: "review", label: "Ocorrência" },
+  { id: "signer", label: "Signatário" },
+  { id: "confirm", label: "Confirmação" },
+];
+
+function getUnauthorizedDecisionStepIndex(step: UnauthorizedDecisionStep) {
+  return unauthorizedDecisionSteps.findIndex((item) => item.id === step);
+}
+
+function UnauthorizedDecisionStepIndicator(props: {
+  currentStep: UnauthorizedDecisionStep;
+}) {
+  const currentStepIndex = getUnauthorizedDecisionStepIndex(props.currentStep);
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {unauthorizedDecisionSteps.map((step, index) => {
+        const isActive = step.id === props.currentStep;
+        const isCompleted = index < currentStepIndex;
+
+        return (
+          <div
+            key={step.id}
+            aria-current={isActive ? "step" : undefined}
+            className={cn(
+              "min-w-0 rounded-lg border px-3 py-2 text-xs transition-colors",
+              isActive
+                ? "border-primary bg-primary/8 text-primary"
+                : isCompleted
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-border bg-muted/30 text-muted-foreground",
+            )}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className={cn(
+                  "flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : isCompleted
+                      ? "bg-emerald-600 text-white"
+                      : "bg-background text-muted-foreground",
+                )}
+              >
+                {index + 1}
+              </span>
+              <span className="truncate font-medium">{step.label}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function UnauthorizedDecisionDialog(props: {
   detectionId: string;
   redirectTo: string;
@@ -240,12 +331,14 @@ function UnauthorizedDecisionDialog(props: {
   selected: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<UnauthorizedDecisionStep>("review");
   const [fullName, setFullName] = useState(props.profile.fullName ?? "");
-  const [cpf, setCpf] = useState(props.profile.cpf ?? "");
+  const [cpf, setCpf] = useState(formatCpfInput(props.profile.cpf));
   const [signerRole, setSignerRole] = useState(props.profile.signerRole ?? "");
   const [signingCity, setSigningCity] = useState(props.profile.signingCity ?? "");
   const [confirmOwnership, setConfirmOwnership] = useState(false);
   const [updateSignature, setUpdateSignature] = useState(!props.profile.signature);
+  const [signatureValid, setSignatureValid] = useState(Boolean(props.profile.signature));
   const [state, formAction, pending] = useActionState(
     confirmUnauthorizedUseAction,
     initialActionState,
@@ -277,10 +370,31 @@ function UnauthorizedDecisionDialog(props: {
     });
   }, [legalProfile, props.assetPublicId]);
 
+  const canContinueFromSigner =
+    legalProfile.ok && (!updateSignature || signatureValid);
+  const cpfDigits = normalizeCpf(cpf);
+  const cpfErrors =
+    cpfDigits.length > 0 && !isValidCpf(cpf)
+      ? [{ message: "CPF deve ter 11 dígitos válidos." }]
+      : [];
+  const cpfFieldErrors = [
+    ...cpfErrors,
+    ...(state.fieldErrors?.cpf?.map((message) => ({ message })) ?? []),
+  ];
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+
+    if (nextOpen) {
+      setStep("review");
+      setConfirmOwnership(false);
+    }
+  }
+
   return (
     <AlertDialog
       open={open && state.status !== "success"}
-      onOpenChange={setOpen}
+      onOpenChange={handleOpenChange}
     >
       <AlertDialogTrigger asChild>
         <Button
@@ -293,10 +407,12 @@ function UnauthorizedDecisionDialog(props: {
           )}
         >
           <div className="flex w-full items-start gap-3">
-            <ShieldAlertIcon className="mt-0.5 size-5 shrink-0" />
+            <ShieldAlertIcon
+              className={cn("mt-0.5 size-5 shrink-0", getOptionIconClasses("destructive"))}
+            />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold">Uso nao autorizado</span>
+                <span className="text-sm font-semibold">Uso não autorizado</span>
                 {props.selected ? <Badge variant="destructive">Selecionado</Badge> : null}
               </div>
               <p className="mt-1 text-sm opacity-80">
@@ -304,236 +420,302 @@ function UnauthorizedDecisionDialog(props: {
               </p>
             </div>
             {props.selected ? (
-              <CheckCircle2Icon className="mt-0.5 size-5 shrink-0" />
+              <CheckCircle2Icon
+                className={cn("mt-0.5 size-5 shrink-0", getOptionIconClasses("destructive"))}
+              />
             ) : (
-              <CircleIcon className="mt-0.5 size-5 shrink-0 opacity-50" />
+              <CircleIcon
+                className={cn(
+                  "mt-0.5 size-5 shrink-0 opacity-70",
+                  getOptionIconClasses("destructive"),
+                )}
+              />
             )}
           </div>
         </Button>
       </AlertDialogTrigger>
 
-      <AlertDialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto border-0 p-0 shadow-2xl sm:max-w-6xl">
-        <form action={formAction} className="grid gap-0 lg:grid-cols-[0.85fr_1.15fr]">
-          <div className="bg-[radial-gradient(circle_at_top_left,#f1d58f,transparent_30%),linear-gradient(145deg,#111827_0%,#1f2937_58%,#0f172a_100%)] px-6 py-7 text-white sm:px-8 sm:py-8">
-            <AlertDialogHeader className="space-y-4">
-              <div className="inline-flex w-fit items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-white/80">
+      <AlertDialogContent className="max-h-[calc(100svh-2rem)] w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] overflow-hidden border-0 p-0 shadow-2xl sm:!max-w-3xl">
+        <form
+          action={formAction}
+          className="grid max-h-[calc(100svh-2rem)] min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]"
+        >
+          <div className="border-b border-border px-5 py-5 sm:px-6">
+            <AlertDialogHeader className="space-y-3 text-left">
+              <div className="inline-flex w-fit items-center rounded-full bg-primary/8 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-primary">
                 Encaminhar para a DNL
               </div>
-              <AlertDialogTitle className="text-left text-3xl leading-tight font-semibold text-white">
-                Confirmar uso nao autorizado desta imagem?
+              <AlertDialogTitle className="text-left text-2xl leading-tight font-semibold">
+                Confirmar uso não autorizado desta imagem?
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-left text-base leading-7 text-white/72">
-                Antes de abrir o caso, precisamos gerar a declaracao assinada que
-                confirma a titularidade da imagem e autoriza o prosseguimento do fluxo.
+              <AlertDialogDescription className="text-left text-sm leading-6">
+                Revise a ocorrência, complete os dados do signatário e confirme o termo
+                para encaminhar à equipe DNL.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="mt-5">
+              <UnauthorizedDecisionStepIndicator currentStep={step} />
+            </div>
+          </div>
 
-            <div className="mt-8 grid gap-3">
-              <div className="rounded-2xl border border-white/10 bg-white/8 p-4">
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-white/58">
-                  Imagem monitorada
+          <input type="hidden" name="detectionId" value={props.detectionId} />
+          <input type="hidden" name="redirectTo" value={props.redirectTo} />
+          <input type="hidden" name="scope" value="incident" />
+          <input type="hidden" name="updateSignature" value={updateSignature ? "yes" : "no"} />
+
+          <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6">
+            <section className={step === "review" ? "space-y-4" : "hidden"}>
+              <div>
+                <h3 className="font-heading text-lg font-semibold tracking-tight">
+                  Revise a ocorrência
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Confirme que esta imagem e esta origem devem seguir para análise da DNL.
                 </p>
-                <p className="mt-2 text-sm font-semibold text-white">Imagem {String(props.assetPublicId).padStart(6, "0")}</p>
-                <p className="mt-1 text-sm leading-6 text-white/72">{props.assetTitle}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/8 p-4">
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-white/58">
-                  Origem da ocorrencia
+              <div className="grid gap-3">
+                <div className="rounded-lg border border-border bg-muted/20 p-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    Imagem
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    Imagem {String(props.assetPublicId).padStart(6, "0")}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">{props.assetTitle}</p>
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/20 p-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    Origem
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    {props.domain ?? "Site não identificado"}
+                  </p>
+                  <p className="mt-1 break-all text-sm leading-6 text-muted-foreground">
+                    {props.sourceUrl}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                  Ao confirmar, a ocorrência vira um caso para acompanhamento da equipe DNL.
+                </div>
+              </div>
+            </section>
+
+            <section className={step === "signer" ? "space-y-5" : "hidden"}>
+              <div>
+                <h3 className="font-heading text-lg font-semibold tracking-tight">
+                  Dados do signatário
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Informe quem assina a declaração de titularidade.
                 </p>
-                <p className="mt-2 text-sm font-medium text-white">{props.domain ?? "Site nao identificado"}</p>
-                <p className="mt-1 break-all text-sm leading-6 text-white/72">{props.sourceUrl}</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="fullName">Nome completo</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="fullName"
+                      name="fullName"
+                      onChange={(event) => setFullName(event.target.value)}
+                      required
+                      value={fullName}
+                    />
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="cpf">CPF</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      aria-invalid={cpfErrors.length > 0 ? true : undefined}
+                      autoComplete="off"
+                      id="cpf"
+                      inputMode="numeric"
+                      maxLength={14}
+                      name="cpf"
+                      onChange={(event) => setCpf(formatCpfInput(event.target.value))}
+                      placeholder="000.000.000-00"
+                      required
+                      value={cpf}
+                    />
+                    <FieldError errors={cpfFieldErrors} />
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="signerRole">Qualificação do signatário</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="signerRole"
+                      name="signerRole"
+                      onChange={(event) => setSignerRole(event.target.value)}
+                      placeholder="Ex.: Fotógrafo profissional"
+                      required
+                      value={signerRole}
+                    />
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="signingCity">Cidade de assinatura</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="signingCity"
+                      name="signingCity"
+                      onChange={(event) => setSigningCity(event.target.value)}
+                      placeholder="Ex.: São Paulo"
+                      required
+                      value={signingCity}
+                    />
+                    <FieldDescription>
+                      A data do documento será gerada com essa cidade.
+                    </FieldDescription>
+                  </FieldContent>
+                </Field>
               </div>
 
               {props.profile.signature && !updateSignature ? (
-                <div className="rounded-2xl border border-white/10 bg-white/8 p-4">
+                <div className="rounded-lg border border-border bg-muted/20 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-[0.16em] text-white/58">
-                        Assinatura salva
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-white">
-                        {props.profile.signature.signedName}
-                      </p>
-                      <p className="mt-1 text-sm text-white/72">
-                        Atualizada em {formatDate(props.profile.signature.updatedAt)}
+                      <p className="text-sm font-medium text-foreground">Assinatura salva</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {props.profile.signature.signedName} · atualizada em{" "}
+                        {formatDate(props.profile.signature.updatedAt)}
                       </p>
                     </div>
                     <Button
                       type="button"
-                      variant="secondary"
-                      onClick={() => setUpdateSignature(true)}
+                      variant="outline"
+                      onClick={() => {
+                        setUpdateSignature(true);
+                        setSignatureValid(Boolean(props.profile.signature));
+                      }}
                     >
                       Refazer assinatura
                     </Button>
                   </div>
                   <div
-                    className="mt-4 rounded-2xl border border-white/10 bg-white p-3 [&>svg]:h-auto [&>svg]:w-full"
+                    className="mt-4 rounded-lg border border-border bg-white p-3 [&>svg]:h-auto [&>svg]:w-full"
                     dangerouslySetInnerHTML={{ __html: props.profile.signature.svg }}
                   />
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-white/20 bg-white/6 p-4 text-sm leading-6 text-white/72">
-                  {props.profile.signature
-                    ? "Voce optou por refazer a assinatura para este novo documento."
-                    : "Esta e a primeira vez que voce encaminha um caso como uso nao autorizado. Crie a assinatura agora para salvar no perfil e reutilizar depois."}
+                <div>
+                  <ClientSignatureField
+                    defaultPayloadJson={props.profile.signature?.payloadJson}
+                    defaultSignedName={props.profile.signature?.signedName}
+                    description="Salvamos esta assinatura para reaproveitar em próximas confirmações."
+                    onValidityChange={setSignatureValid}
+                    suggestedSignedName={fullName}
+                    title="Assinatura do signatário"
+                  />
+                  <FieldError errors={state.fieldErrors?.signature?.map((message) => ({ message }))} />
                 </div>
               )}
-            </div>
-          </div>
+            </section>
 
-          <div className="px-6 py-7 sm:px-8 sm:py-8">
-            <input type="hidden" name="detectionId" value={props.detectionId} />
-            <input type="hidden" name="redirectTo" value={props.redirectTo} />
-            <input type="hidden" name="scope" value="incident" />
-            <input type="hidden" name="updateSignature" value={updateSignature ? "yes" : "no"} />
-
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <div className="space-y-5">
-                <div>
-                  <h3 className="font-heading text-xl font-semibold tracking-tight">
-                    Dados do signatario
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Revise ou complete os dados da pessoa fisica que assina esta declaracao.
-                  </p>
-                </div>
-
-                <div className="grid gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="fullName">Nome completo</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="fullName"
-                        name="fullName"
-                        onChange={(event) => setFullName(event.target.value)}
-                        required
-                        value={fullName}
-                      />
-                    </FieldContent>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="cpf">CPF</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="cpf"
-                        name="cpf"
-                        onChange={(event) => setCpf(event.target.value)}
-                        placeholder="000.000.000-00"
-                        required
-                        value={cpf}
-                      />
-                      <FieldError errors={state.fieldErrors?.cpf?.map((message) => ({ message }))} />
-                    </FieldContent>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="signerRole">Qualificacao do signatario</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="signerRole"
-                        name="signerRole"
-                        onChange={(event) => setSignerRole(event.target.value)}
-                        placeholder="Ex.: Fotografo profissional"
-                        required
-                        value={signerRole}
-                      />
-                    </FieldContent>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="signingCity">Cidade de assinatura</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="signingCity"
-                        name="signingCity"
-                        onChange={(event) => setSigningCity(event.target.value)}
-                        placeholder="Ex.: Sao Paulo"
-                        required
-                        value={signingCity}
-                      />
-                      <FieldDescription>
-                        A data do documento sera gerada com essa cidade.
-                      </FieldDescription>
-                    </FieldContent>
-                  </Field>
-                </div>
-
-                {updateSignature ? (
-                  <div>
-                    <ClientSignatureField
-                      defaultPayloadJson={props.profile.signature?.payloadJson}
-                      defaultSignedName={props.profile.signature?.signedName}
-                      description="A assinatura salva aqui sera reutilizada nas proximas confirmacoes de titularidade."
-                      suggestedSignedName={fullName}
-                      title="Assinatura do signatario"
-                    />
-                    <FieldError errors={state.fieldErrors?.signature?.map((message) => ({ message }))} />
-                  </div>
-                ) : null}
+            <section className={step === "confirm" ? "space-y-5" : "hidden"}>
+              <div>
+                <h3 className="font-heading text-lg font-semibold tracking-tight">
+                  Conferir e confirmar
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Revise o termo gerado antes de encaminhar a ocorrência.
+                </p>
               </div>
 
-              <div className="space-y-5">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-primary/8 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-primary">
-                    <FileSignatureIcon className="size-3.5" />
-                    Preview do termo
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    Este documento sera salvo junto com o caso para consulta da equipe DNL.
-                  </p>
+              <div className="rounded-lg border border-border bg-muted/20 p-4">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/8 px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] text-primary">
+                  <FileSignatureIcon className="size-3.5" />
+                  Termo
                 </div>
-
-                <div className="rounded-3xl border border-border bg-muted/20 p-5">
-                  {documentPreview ? (
-                    <pre className="whitespace-pre-wrap text-sm leading-7 text-foreground">
-                      {documentPreview.body}
-                    </pre>
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-border bg-background px-4 py-5 text-sm leading-6 text-muted-foreground">
-                      {legalProfile.ok
-                        ? "O preview sera carregado em instantes."
-                        : legalProfile.message}
-                    </div>
-                  )}
-                </div>
-
-                <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted/20 p-4">
-                  <input
-                    checked={confirmOwnership}
-                    className="mt-1 size-4 rounded border border-input"
-                    name="confirmOwnership"
-                    onChange={(event) => setConfirmOwnership(event.target.checked)}
-                    type="checkbox"
-                  />
-                  <span className="text-sm leading-6 text-muted-foreground">
-                    Confirmo que revisei este documento, que sou o titular ou signatario autorizado
-                    da imagem informada e que desejo encaminhar esta ocorrencia como uso nao autorizado.
-                  </span>
-                </label>
-
-                {state.message ? (
-                  <div
-                    className={`rounded-2xl border px-4 py-3 text-sm ${
-                      state.status === "success"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                        : "border-destructive/20 bg-destructive/8 text-destructive"
-                    }`}
-                  >
-                    {state.message}
+                {documentPreview ? (
+                  <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-background p-4 text-sm leading-7 text-foreground">
+                    {documentPreview.body}
+                  </pre>
+                ) : (
+                  <div className="rounded-md border border-dashed border-border bg-background px-4 py-5 text-sm leading-6 text-muted-foreground">
+                    {legalProfile.ok
+                      ? "O preview será carregado em instantes."
+                      : legalProfile.message}
                   </div>
-                ) : null}
+                )}
               </div>
-            </div>
 
-            <AlertDialogFooter className="mt-8 border-t border-border pt-5">
-              <AlertDialogCancel disabled={pending}>Cancelar</AlertDialogCancel>
-              <Button disabled={pending || !confirmOwnership || !documentPreview} type="submit">
-                {pending ? "Salvando declaracao..." : "Confirmar uso nao autorizado"}
-              </Button>
-            </AlertDialogFooter>
+              <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-4">
+                <input
+                  checked={confirmOwnership}
+                  className="mt-1 size-4 rounded border border-input"
+                  name="confirmOwnership"
+                  onChange={(event) => setConfirmOwnership(event.target.checked)}
+                  type="checkbox"
+                />
+                <span className="text-sm leading-6 text-muted-foreground">
+                  Confirmo que revisei o documento, que sou o titular ou signatário autorizado
+                  da imagem e desejo encaminhar esta ocorrência como uso não autorizado.
+                </span>
+              </label>
+
+              {state.message ? (
+                <div
+                  className={`rounded-lg border px-4 py-3 text-sm ${
+                    state.status === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border-destructive/20 bg-destructive/8 text-destructive"
+                  }`}
+                >
+                  {state.message}
+                </div>
+              ) : null}
+            </section>
           </div>
+
+          <AlertDialogFooter className="border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <AlertDialogCancel disabled={pending}>Cancelar</AlertDialogCancel>
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              {step !== "review" ? (
+                <Button
+                  disabled={pending}
+                  onClick={() => setStep(step === "confirm" ? "signer" : "review")}
+                  type="button"
+                  variant="outline"
+                >
+                  <ArrowLeftIcon className="size-4" />
+                  Voltar
+                </Button>
+              ) : null}
+
+              {step === "review" ? (
+                <Button onClick={() => setStep("signer")} type="button">
+                  Continuar
+                  <ArrowRightIcon className="size-4" />
+                </Button>
+              ) : null}
+
+              {step === "signer" ? (
+                <Button
+                  disabled={!canContinueFromSigner}
+                  onClick={() => setStep("confirm")}
+                  type="button"
+                >
+                  Continuar
+                  <ArrowRightIcon className="size-4" />
+                </Button>
+              ) : null}
+
+              {step === "confirm" ? (
+                <Button disabled={pending || !confirmOwnership || !documentPreview} type="submit">
+                  {pending ? "Salvando..." : "Confirmar uso não autorizado"}
+                </Button>
+              ) : null}
+            </div>
+          </AlertDialogFooter>
         </form>
       </AlertDialogContent>
     </AlertDialog>
@@ -556,10 +738,10 @@ export function IncidentActionsPanel({
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="font-heading text-xl font-semibold tracking-tight">Acoes</h2>
+        <h2 className="font-heading text-xl font-semibold tracking-tight">Ações</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Escolha como este grupo deve ser tratado. A decisao vale para esta imagem
-          neste dominio.
+          Escolha como este grupo deve ser tratado. A decisão vale para esta imagem
+          neste domínio.
         </p>
       </div>
 
@@ -576,19 +758,11 @@ export function IncidentActionsPanel({
             <input type="hidden" name="scope" value="incident" />
             <input type="hidden" name="redirectTo" value={redirectTo} />
             <PendingSubmitButton className="w-full border-border bg-background text-foreground hover:bg-muted">
-              Cancelar decisao
+              Cancelar decisão
             </PendingSubmitButton>
           </form>
         </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4">
-          <p className="text-sm font-medium text-foreground">Nenhuma decisao registrada ainda.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Escolha uma das acoes abaixo para dizer se este uso deve ser ignorado,
-            aceito ou encaminhado para a DNL.
-          </p>
-        </div>
-      )}
+      ) : null}
 
       <div className="space-y-3">
         {decisionOptions.map((option) =>

@@ -11,7 +11,25 @@ export function formatCpf(value: string) {
   return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 }
 
-function isValidCpf(value: string) {
+export function formatCpfInput(value: string | null | undefined) {
+  const digits = normalizeCpf(value).slice(0, 11);
+
+  if (digits.length <= 3) {
+    return digits;
+  }
+
+  if (digits.length <= 6) {
+    return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  }
+
+  if (digits.length <= 9) {
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  }
+
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
+export function isValidCpf(value: string) {
   const digits = normalizeCpf(value);
 
   if (!/^\d{11}$/.test(digits) || /^(\d)\1{10}$/.test(digits)) {

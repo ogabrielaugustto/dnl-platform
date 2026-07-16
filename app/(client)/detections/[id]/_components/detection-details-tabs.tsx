@@ -32,7 +32,7 @@ type DetectionDetailsTabsProps = {
 
 function formatDate(value: string | null) {
   if (!value) {
-    return "Nao informado";
+    return "Não informado";
   }
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -108,16 +108,16 @@ export function DetectionDetailsTabs({
     <Tabs defaultValue="analysis" className="w-full">
       <TabsList
         variant="line"
-        className="w-full justify-start overflow-x-auto border-b border-border p-0"
+        className="w-full justify-start overflow-x-auto overflow-y-hidden border-b border-border p-0"
       >
         <TabsTrigger value="analysis" className="flex-none px-3 py-2">
-          Analise
+          Análise
         </TabsTrigger>
         <TabsTrigger value="pages" className="flex-none px-3 py-2">
-          Paginas
+          Páginas
         </TabsTrigger>
         <TabsTrigger value="evidence" className="flex-none px-3 py-2">
-          Evidencias
+          Evidências
         </TabsTrigger>
         <TabsTrigger value="site" className="flex-none px-3 py-2">
           Site
@@ -128,15 +128,15 @@ export function DetectionDetailsTabs({
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border border-border bg-muted/20 p-3">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Dominio
+              Domínio
             </p>
             <p className="mt-2 break-all text-sm font-medium text-foreground">
-              {incident.domain || "Nao identificado"}
+              {incident.domain || "Não identificado"}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-muted/20 p-3">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              {isCase ? "Caso" : "Grupo de ocorrencias"}
+              {isCase ? "Caso" : "Grupo de ocorrências"}
             </p>
             <p className="mt-2 text-sm font-medium text-foreground">
               {formatPublicId(isCase ? incident.casePublicId : incident.publicId)}
@@ -144,7 +144,7 @@ export function DetectionDetailsTabs({
           </div>
           <div className="rounded-lg border border-border bg-muted/20 p-3">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Evidencias
+              Evidências
             </p>
             <p className="mt-2 text-sm font-medium text-foreground">
               {formatEvidenceCoverage(incident.evidenceCoverage)}
@@ -162,7 +162,7 @@ export function DetectionDetailsTabs({
 
         <div className="mt-4 rounded-lg border border-border bg-card/60 p-3">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            URL em revisao
+            URL em revisão
           </p>
           <a
             href={currentSourceUrl}
@@ -187,7 +187,7 @@ export function DetectionDetailsTabs({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">
-                    {page.pageTitle ?? "Pagina sem titulo identificado"}
+                    {page.pageTitle ?? "Página sem título identificado"}
                   </p>
                   <a
                     href={page.sourceUrl}
@@ -217,7 +217,7 @@ export function DetectionDetailsTabs({
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">
-                        Ocorrencia {formatPublicId(placement.publicId)}
+                        Ocorrência {formatPublicId(placement.publicId)}
                       </Badge>
                       <Badge variant={getDetectionStatusVariant(placement.status)}>
                         {formatDetectionStatus(placement.status)}
@@ -230,7 +230,7 @@ export function DetectionDetailsTabs({
                       </span>
                     </div>
                     {placement.id === detectionId ? (
-                      <span className="text-sm font-medium text-foreground">Em analise</span>
+                      <span className="text-sm font-medium text-foreground">Em análise</span>
                     ) : (
                       <Link
                         href={`/detections/${placement.id}`}
@@ -252,7 +252,7 @@ export function DetectionDetailsTabs({
           {evidences.length === 0 ? (
             <div className="rounded-lg border border-border bg-card/60 p-4">
               <p className="text-sm text-muted-foreground">
-                Ainda nao existe evidencia cadastrada para este registro.
+                Ainda não existe evidência cadastrada para este registro.
               </p>
             </div>
           ) : (
@@ -264,7 +264,7 @@ export function DetectionDetailsTabs({
                       Captura de {formatDate(evidence.createdAt)}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      URL final: {evidence.finalUrl ?? "Nao informada"}
+                      URL final: {evidence.finalUrl ?? "Não informada"}
                     </p>
                   </div>
                   <Badge variant={getEvidenceStatusVariant(evidence.captureStatus)}>
@@ -282,13 +282,13 @@ export function DetectionDetailsTabs({
                   <ImagePanel
                     title="Imagem encontrada"
                     imageUrl={evidence.matchedImageUrl}
-                    alt={`Imagem encontrada da evidencia ${evidence.id}`}
+                    alt={`Imagem encontrada da evidência ${evidence.id}`}
                     fallback="Sem imagem preservada nesta captura."
                   />
                   <ImagePanel
-                    title="Screenshot da pagina"
+                    title="Screenshot da página"
                     imageUrl={evidence.screenshotUrl}
-                    alt={`Screenshot da evidencia ${evidence.id}`}
+                    alt={`Screenshot da evidência ${evidence.id}`}
                     fallback="Sem screenshot salvo nesta captura."
                   />
                 </div>
@@ -302,10 +302,10 @@ export function DetectionDetailsTabs({
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border border-border bg-muted/20 p-3">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Dominio
+              Domínio
             </p>
             <p className="mt-2 break-all text-sm font-medium text-foreground">
-              {siteSnapshot?.domain ?? "Nao identificado"}
+              {siteSnapshot?.domain ?? "Não identificado"}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-muted/20 p-3">
@@ -313,15 +313,15 @@ export function DetectionDetailsTabs({
               Nome do site
             </p>
             <p className="mt-2 text-sm font-medium text-foreground">
-              {siteSnapshot?.siteName ?? "Nao informado"}
+              {siteSnapshot?.siteName ?? "Não informado"}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-muted/20 p-3">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Titulo
+              Título
             </p>
             <p className="mt-2 text-sm font-medium text-foreground">
-              {siteSnapshot?.title ?? "Nao informado"}
+              {siteSnapshot?.title ?? "Não informado"}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-muted/20 p-3">
@@ -329,7 +329,7 @@ export function DetectionDetailsTabs({
               Registro
             </p>
             <p className="mt-2 text-sm font-medium text-foreground">
-              {siteSnapshot?.rdap?.registrar ?? "Nao informado"}
+              {siteSnapshot?.rdap?.registrar ?? "Não informado"}
             </p>
           </div>
         </div>
@@ -339,7 +339,7 @@ export function DetectionDetailsTabs({
             URL final analisada
           </p>
           <p className="mt-2 break-all text-sm text-foreground">
-            {siteSnapshot?.finalUrl ?? "Nao informado"}
+            {siteSnapshot?.finalUrl ?? "Não informado"}
           </p>
           {siteSnapshot?.description ? (
             <p className="mt-2 text-sm text-muted-foreground">{siteSnapshot.description}</p>

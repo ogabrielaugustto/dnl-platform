@@ -26,15 +26,15 @@ type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
 export function formatDetectionStatus(status: string) {
   switch (status as DetectionStatus) {
     case "pending":
-      return "Aguardando validacao";
+      return "Aguardando validação";
     case "possible_infringement":
-      return "Uso nao autorizado";
+      return "Uso não autorizado";
     case "authorized":
       return "Uso autorizado";
     case "unauthorized":
-      return "Uso nao autorizado";
+      return "Uso não autorizado";
     case "takedown_sent":
-      return "Notificacao enviada";
+      return "Notificação enviada";
     case "resolved":
       return "Resolvido";
     case "ignored":
@@ -47,21 +47,21 @@ export function formatDetectionStatus(status: string) {
 export function getDetectionStatusHelp(status: string) {
   switch (status as DetectionStatus) {
     case "pending":
-      return "A ocorrencia foi encontrada, mas ainda precisa da sua analise.";
+      return "A ocorrência foi encontrada, mas ainda precisa da sua análise.";
     case "possible_infringement":
-      return "Este registro veio do fluxo anterior e esta sendo tratado como uso nao autorizado na interface.";
+      return "Este registro veio do fluxo anterior e está sendo tratado como uso não autorizado na interface.";
     case "authorized":
       return "O uso encontrado foi considerado permitido ou esperado.";
     case "unauthorized":
-      return "Voce identificou que o uso nao tem autorizacao.";
+      return "Você identificou que o uso não tem autorização.";
     case "takedown_sent":
-      return "Ja houve uma acao de notificacao ou pedido de remocao.";
+      return "Já houve uma ação de notificação ou pedido de remoção.";
     case "resolved":
-      return "A situacao foi tratada e nao exige novas acoes no momento.";
+      return "A situação foi tratada e não exige novas ações no momento.";
     case "ignored":
-      return "A ocorrencia nao sera acompanhada neste momento.";
+      return "A ocorrência não será acompanhada neste momento.";
     default:
-      return "Status da ocorrencia.";
+      return "Status da ocorrência.";
   }
 }
 
@@ -100,17 +100,17 @@ export function formatEvidenceStatus(status: string) {
 export function getEvidenceStatusHelp(status: string) {
   switch (status as EvidenceCaptureStatus) {
     case "pending":
-      return "A captura da pagina foi registrada e deve acontecer em breve.";
+      return "A captura da página foi registrada e deve acontecer em breve.";
     case "processing":
-      return "A captura visual da pagina esta sendo feita agora.";
+      return "A captura visual da página está sendo feita agora.";
     case "captured":
-      return "A evidencia visual foi capturada com sucesso.";
+      return "A evidência visual foi capturada com sucesso.";
     case "failed":
-      return "Nao foi possivel capturar a evidencia desta vez.";
+      return "Não foi possível capturar a evidência desta vez.";
     case "skipped":
-      return "A captura foi ignorada para esta evidencia.";
+      return "A captura foi ignorada para esta evidência.";
     default:
-      return "Status da evidencia.";
+      return "Status da evidência.";
   }
 }
 
@@ -132,7 +132,7 @@ export function formatEvidenceCoverage(status: string) {
     case "partial":
       return "Cobertura parcial";
     case "failed":
-      return "Sem captura util";
+      return "Sem captura útil";
     case "pending":
       return "Captura pendente";
     default:
@@ -143,15 +143,15 @@ export function formatEvidenceCoverage(status: string) {
 export function getEvidenceCoverageHelp(status: string) {
   switch (status as EvidenceCoverageStatus) {
     case "captured":
-      return "Cada pagina deste incidente ja possui ao menos uma evidencia visual aproveitavel.";
+      return "Cada página deste incidente já possui ao menos uma evidência visual aproveitável.";
     case "partial":
-      return "Parte das paginas ja tem evidencia pronta, mas ainda faltam capturas em outras.";
+      return "Parte das páginas já tem evidência pronta, mas ainda faltam capturas em outras.";
     case "failed":
-      return "Ainda nao existe captura util para as paginas deste recorte.";
+      return "Ainda não existe captura útil para as páginas deste recorte.";
     case "pending":
-      return "As capturas ainda estao em fila, em processamento ou aguardando nova tentativa.";
+      return "As capturas ainda estão em fila, em processamento ou aguardando nova tentativa.";
     default:
-      return "Cobertura de evidencia deste recorte.";
+      return "Cobertura de evidência deste recorte.";
   }
 }
 
@@ -171,19 +171,19 @@ export function getEvidenceCoverageVariant(status: string): BadgeVariant {
 export function formatDetectionMatchType(matchType: string) {
   switch (matchType as DetectionMatchType) {
     case "full":
-      return "Correspondencia total";
+      return "Correspondência total";
     case "partial":
-      return "Correspondencia parcial";
+      return "Correspondência parcial";
     case "page":
-      return "Pagina relacionada";
+      return "Página relacionada";
     default:
-      return "Tipo nao informado";
+      return "Tipo não informado";
   }
 }
 
 export function formatSimilarityScore(score: number | null) {
   if (score === null || Number.isNaN(score)) {
-    return "Nao informado";
+    return "Não informado";
   }
 
   return `${Math.round(score * 100)}%`;
