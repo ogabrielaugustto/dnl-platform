@@ -53,6 +53,27 @@ export async function deleteAssetFromR2(key: string) {
   );
 }
 
+export async function readAssetFromR2(key: string) {
+  const client = getR2Client();
+  const response = await client.send(
+    new GetObjectCommand({
+      Bucket: env.R2_BUCKET_ASSETS,
+      Key: key,
+    }),
+  );
+
+  const bytes = await response.Body?.transformToByteArray();
+
+  if (!bytes) {
+    throw new Error("Nao foi possivel ler a imagem armazenada.");
+  }
+
+  return {
+    body: Buffer.from(bytes),
+    contentType: response.ContentType ?? "image/png",
+  };
+}
+
 export async function readEvidenceFromR2(key: string) {
   const client = getR2Client();
   const response = await client.send(

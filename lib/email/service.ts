@@ -163,6 +163,8 @@ export async function sendCaseCommunicationEmail({
   clientName,
   domain,
   sourceUrl,
+  validationUrl,
+  validationCode,
   replyTo,
 }: {
   to: string;
@@ -172,6 +174,8 @@ export async function sendCaseCommunicationEmail({
   clientName: string;
   domain: string;
   sourceUrl: string;
+  validationUrl?: string | null;
+  validationCode?: string | null;
   replyTo?: string | null;
 }) {
   const content = buildCaseCommunicationEmail({
@@ -181,6 +185,8 @@ export async function sendCaseCommunicationEmail({
     clientName,
     domain,
     sourceUrl,
+    validationUrl,
+    validationCode,
   });
 
   await sendEmail({

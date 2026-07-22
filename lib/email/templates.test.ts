@@ -86,12 +86,19 @@ test("buildCaseCommunicationEmail wraps a case message without placeholders", as
       clientName: "Cliente Exemplo",
       domain: "example.com",
       sourceUrl: "https://example.com/noticia",
+      validationUrl:
+        "https://app.example.com/validar-notificacao?codigo=000123&chave=ABCD-1234-EFGH-5678",
+      validationCode: "ABCD-1234-EFGH-5678",
     });
 
     assert.match(email.subject, /000123|caso/i);
     assert.match(email.html, /example\.com/);
     assert.match(email.html, /Foto editorial|caso|noticia/i);
+    assert.match(email.html, /Validar notifica/i);
+    assert.match(email.html, /ABCD-1234-EFGH-5678/);
+    assert.match(email.html, /https:\/\/app\.example\.com\/validar-notificacao\?codigo=000123&amp;chave=ABCD-1234-EFGH-5678/);
     assert.match(email.text, /https:\/\/example\.com\/noticia/);
+    assert.match(email.text, /https:\/\/app\.example\.com\/validar-notificacao\?codigo=000123&chave=ABCD-1234-EFGH-5678/);
     assert.doesNotMatch(email.html, /\[|\]|\{|\}|PREENCHER|NOME COMPLETO/);
   }
 });

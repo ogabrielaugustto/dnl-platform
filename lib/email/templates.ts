@@ -32,6 +32,8 @@ type CaseCommunicationEmailParams = {
   clientName: string;
   domain: string;
   sourceUrl: string;
+  validationUrl?: string | null;
+  validationCode?: string | null;
 };
 
 function escapeHtml(value: string) {
@@ -198,15 +200,30 @@ export function buildCaseCommunicationEmail({
   clientName,
   domain,
   sourceUrl,
+  validationUrl,
+  validationCode,
 }: CaseCommunicationEmailParams): EmailContent {
   const escapedBody = escapeHtml(body);
+  const validationMarkup =
+    validationUrl && validationCode
+      ? `<div style="margin:18px 0 0;padding:14px 16px;border-radius:16px;background:#eff6ff;border:1px solid rgba(37,99,235,0.12);font-size:13px;line-height:1.7;color:#1e3a8a;">
+          <strong>Validação oficial:</strong> use o botão abaixo ou acesse a página Validar notificação no site da Direito na Lente.<br>
+          <strong>ID do caso:</strong> ${escapeHtml(casePublicIdLabel)}<br>
+          <strong>Chave de validação:</strong> ${escapeHtml(validationCode)}
+        </div>`
+      : "";
   const textHeader = [
     `Caso: ${casePublicIdLabel}`,
     `Cliente: ${clientName}`,
     `Dominio: ${domain}`,
     `URL: ${sourceUrl}`,
+    validationUrl && validationCode
+      ? `Validacao oficial: ${validationUrl}\nChave de validacao: ${validationCode}`
+      : null,
     "",
-  ].join("\n");
+  ]
+    .filter((item): item is string => Boolean(item))
+    .join("\n");
 
   return {
     subject,
@@ -221,7 +238,10 @@ export function buildCaseCommunicationEmail({
           <strong>URL:</strong> ${escapeHtml(sourceUrl)}
         </div>
         <div style="white-space:pre-wrap;">${escapedBody}</div>
+        ${validationMarkup}
       `,
+      actionLabel: validationUrl ? "Validar notificação" : undefined,
+      actionUrl: validationUrl ?? undefined,
       note: "Esta mensagem foi registrada no histórico operacional do caso na Direito na Lente.",
     }),
   };

@@ -17,7 +17,9 @@ import {
   type SettlementStatus,
   type WorkflowStage,
 } from "@/lib/admin-case-workflow";
-import { sendCaseCommunicationEmail } from "@/lib/email/service";
+import { buildCaseValidationUrl } from "@/lib/case-validation-code";
+import { createCasePublicValidationCode } from "@/lib/dal/case-public-validation";
+import { getAppUrl, sendCaseCommunicationEmail } from "@/lib/email/service";
 import { uploadCaseDocumentToR2 } from "@/lib/r2";
 import { createClient } from "@/lib/server";
 
@@ -365,6 +367,28 @@ function settlementStage(status: SettlementStatus): WorkflowStage {
 function revalidateCasePaths(params: { organizationId: string; casePublicId: number }) {
   revalidatePath("/admin/cases");
   revalidatePath(`/admin/cases/${params.organizationId}/${params.casePublicId}`);
+}
+
+async function createCaseValidationEmailContext(params: {
+  organizationId: string;
+  casePublicId: number;
+  userId: string;
+}) {
+  const validationCode = await createCasePublicValidationCode({
+    organizationId: params.organizationId,
+    casePublicId: params.casePublicId,
+    createdByUserId: params.userId,
+  });
+
+  return {
+    validationCode: validationCode.formatted,
+    validationCodeHint: validationCode.hint,
+    validationUrl: buildCaseValidationUrl({
+      baseUrl: getAppUrl(),
+      casePublicId: params.casePublicId,
+      validationCode: validationCode.formatted,
+    }),
+  };
 }
 
 async function ensureWorkflow(params: {
@@ -891,8 +915,16 @@ export async function executeAdminCaseAction(
         amountFormatted: data.proposedAmount,
         portalReference: data.casePublicIdLabel,
       });
+      let validationCodeHint: string | null = null;
 
       if (data.notifiedEmail) {
+        const validationContext = await createCaseValidationEmailContext({
+          organizationId: data.organizationId,
+          casePublicId: data.casePublicId,
+          userId: context.userId,
+        });
+        validationCodeHint = validationContext.validationCodeHint;
+
         await sendCaseCommunicationEmail({
           to: data.notifiedEmail,
           subject: snapshot.subject,
@@ -901,6 +933,8 @@ export async function executeAdminCaseAction(
           clientName: data.clientName,
           domain: data.domain,
           sourceUrl: data.sourceUrl,
+          validationUrl: validationContext.validationUrl,
+          validationCode: validationContext.validationCode,
         });
       }
 
@@ -919,6 +953,7 @@ export async function executeAdminCaseAction(
         metadata: {
           actionKind: data.actionKind,
           emailTo: data.notifiedEmail,
+          validationCodeHint,
         },
       });
 
@@ -937,8 +972,16 @@ export async function executeAdminCaseAction(
         paymentReference: data.paymentReference,
         notes: data.notes,
       });
+      let validationCodeHint: string | null = null;
 
       if (data.notifiedEmail) {
+        const validationContext = await createCaseValidationEmailContext({
+          organizationId: data.organizationId,
+          casePublicId: data.casePublicId,
+          userId: context.userId,
+        });
+        validationCodeHint = validationContext.validationCodeHint;
+
         await sendCaseCommunicationEmail({
           to: data.notifiedEmail,
           subject: snapshot.subject,
@@ -947,6 +990,8 @@ export async function executeAdminCaseAction(
           clientName: data.clientName,
           domain: data.domain,
           sourceUrl: data.sourceUrl,
+          validationUrl: validationContext.validationUrl,
+          validationCode: validationContext.validationCode,
         });
       }
 
@@ -965,6 +1010,7 @@ export async function executeAdminCaseAction(
         metadata: {
           actionKind: data.actionKind,
           emailTo: data.notifiedEmail,
+          validationCodeHint,
         },
       });
 

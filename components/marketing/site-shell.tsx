@@ -9,6 +9,7 @@ const navigationLinks = [
   { href: "/#como-funciona", label: "Como funciona" },
   { href: "/#planos", label: "Planos" },
   { href: "/#faq", label: "FAQ" },
+  { href: "/validar-notificacao", label: "Validar notificação" },
   { href: "/contato", label: "Contato" },
 ];
 
@@ -83,6 +84,9 @@ export function MarketingSiteShell({
             </Link>
             <Link className="hover:text-foreground" href="/contato">
               Contato
+            </Link>
+            <Link className="hover:text-foreground" href="/validar-notificacao">
+              Validar notificação
             </Link>
             <Link className="hover:text-foreground" href="/termos-de-uso">
               Termos de Uso
