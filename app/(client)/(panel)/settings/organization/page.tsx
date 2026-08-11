@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronLeftIcon } from "lucide-react";
-import { OrganizationSettingsForm } from "@/app/(client)/settings/_components/organization-settings-form";
+import { OrganizationSettingsForm } from "@/app/(client)/(panel)/settings/_components/organization-settings-form";
 import { Button } from "@/components/ui/button";
 import {
   Card,

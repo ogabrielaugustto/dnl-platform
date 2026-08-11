@@ -149,3 +149,12 @@ test("maps admin case actions to workflow effects", () => {
     sendsEmail: false,
   });
 });
+
+test("enables only the integrated SRA action in the admin action menu", () => {
+  for (const action of Object.keys(workflow.ADMIN_CASE_ACTION_LABELS)) {
+    assert.equal(
+      workflow.isAdminCaseActionEnabled(action),
+      action === "register_sra",
+    );
+  }
+});

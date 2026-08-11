@@ -1,4 +1,4 @@
-export default function AuthLayout({
+export default function AuthSegmentLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;

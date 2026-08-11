@@ -8,7 +8,7 @@ import {
   FolderIcon,
   SearchIcon,
 } from "lucide-react";
-import { AdminArchiveAssetForm } from "@/app/(admin)/admin/assets/_components/admin-archive-asset-form";
+import { AdminArchiveAssetForm } from "@/app/admin/(protected)/assets/_components/admin-archive-asset-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

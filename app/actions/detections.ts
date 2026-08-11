@@ -17,6 +17,7 @@ import {
   createSignatureRecord,
   parseSignaturePayloadJson,
 } from "@/lib/signature";
+import { wakeWorkerForSiteIntelInvestigation } from "@/lib/worker";
 
 const updateDetectionStatusSchema = z.object({
   detectionId: z.uuid(),
@@ -508,6 +509,10 @@ export async function confirmUnauthorizedUseAction(
   if (actionError) {
     return buildActionState("Nao foi possivel registrar o historico da ocorrencia.");
   }
+
+  await Promise.allSettled(
+    detectionsToUpdate.map((item) => wakeWorkerForSiteIntelInvestigation(item.id)),
+  );
 
   revalidateDetectionViews({
     representativeDetectionId: representative.id,

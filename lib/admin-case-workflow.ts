@@ -543,6 +543,10 @@ export function resolveAdminCaseActionEffect(
   }
 }
 
+export function isAdminCaseActionEnabled(kind: string): kind is AdminCaseActionKind {
+  return kind === "register_sra";
+}
+
 export function buildCaseCommunicationSnapshot(
   kind: CaseCommunicationKind,
   context: CaseCommunicationTemplateContext,

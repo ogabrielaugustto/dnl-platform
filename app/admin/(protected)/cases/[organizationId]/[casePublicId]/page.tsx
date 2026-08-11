@@ -22,6 +22,7 @@ import {
   getEvidenceCoverageVariant,
 } from "@/lib/detection-ui";
 import { getAdminCaseDetails, type AdminCaseDetails } from "@/lib/dal/admin-cases";
+import { getAdminCaseSraDefaults } from "@/lib/dal/admin-case-sra";
 import { formatPublicId } from "@/lib/public-id";
 import { AdminCaseActionMenu } from "./_components/admin-case-action-menu";
 
@@ -78,6 +79,19 @@ function formatList(values: string[], fallback: string) {
   }
 
   return values.join(" • ");
+}
+
+function formatDomainOwnerSource(value: string | null | undefined) {
+  switch (value) {
+    case "rdap":
+      return "RDAP / registro do domínio";
+    case "public_site":
+      return "Contato público do site";
+    case "none":
+      return "Não encontrado";
+    default:
+      return "Não informado";
+  }
 }
 
 function Section({
@@ -316,6 +330,8 @@ function Timeline({ adminCase }: { adminCase: AdminCaseDetails }) {
 }
 
 function SiteSignals({ adminCase }: { adminCase: AdminCaseDetails }) {
+  const domainOwner = adminCase.siteSignals.domainOwner;
+
   return (
     <Section title="Sinais do site">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -345,6 +361,28 @@ function SiteSignals({ adminCase }: { adminCase: AdminCaseDetails }) {
           value={formatList(adminCase.siteSignals.phones, "Nenhum telefone encontrado")}
         />
       </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <InfoItem
+          label="Proprietário do domínio"
+          value={
+            domainOwner?.organization ??
+            domainOwner?.name ??
+            "Nenhum proprietário identificado"
+          }
+        />
+        <InfoItem
+          label="E-mail do proprietário"
+          value={domainOwner?.email ?? "Nenhum e-mail do proprietário encontrado"}
+        />
+        <InfoItem
+          label="Documento do proprietário"
+          value={domainOwner?.document ?? "Nenhum documento encontrado"}
+        />
+        <InfoItem
+          label="Fonte"
+          value={formatDomainOwnerSource(domainOwner?.sourceType)}
+        />
+      </div>
     </Section>
   );
 }
@@ -365,6 +403,7 @@ export default async function AdminCaseDetailsPage({
     notFound();
   }
 
+  const sraDefaults = await getAdminCaseSraDefaults(adminCase);
   const representativePlacement = adminCase.placements[0] ?? null;
   const evidencePreviewUrl =
     adminCase.matchedImageUrl ??
@@ -377,22 +416,8 @@ export default async function AdminCaseDetailsPage({
   const actionContext = {
     organizationId: adminCase.organization.id,
     casePublicId: adminCase.publicId,
-    representativeDetectionId: adminCase.representativeDetectionId,
     casePublicIdLabel,
-    clientName: adminCase.organization.name,
-    domain: formatDomain(adminCase.domain),
-    sourceUrl: adminCase.sourceUrl,
-    finalUrl: adminCase.finalUrl,
-    assetTitle: adminCase.asset.title,
-    defaultNotifiedName: adminCase.workflow.notified.name ?? "",
-    defaultNotifiedEmail:
-      adminCase.workflow.notified.email ?? adminCase.siteSignals.emails[0] ?? "",
-    defaultNotifiedPhone:
-      adminCase.workflow.notified.phone ?? adminCase.siteSignals.phones[0] ?? "",
-    defaultNotifiedDocument:
-      adminCase.workflow.notified.document ?? adminCase.siteSignals.cnpjCandidates[0] ?? "",
-    defaultNotifiedWebsiteUrl:
-      adminCase.workflow.notified.websiteUrl ?? adminCase.finalUrl ?? adminCase.sourceUrl,
+    sraDefaults,
   };
 
   return (

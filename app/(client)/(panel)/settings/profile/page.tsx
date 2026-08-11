@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronLeftIcon } from "lucide-react";
-import { ProfileSettingsForm } from "@/app/(client)/settings/_components/profile-settings-form";
+import { ProfileSettingsForm } from "@/app/(client)/(panel)/settings/_components/profile-settings-form";
 import { Button } from "@/components/ui/button";
 import {
   Card,

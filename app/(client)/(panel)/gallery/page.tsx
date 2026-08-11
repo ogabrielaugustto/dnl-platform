@@ -1,5 +1,5 @@
-import { LiveWorkflowRefresh } from "@/app/(client)/_components/live-workflow-refresh";
-import { GalleryWorkspace } from "@/app/(client)/gallery/_components/gallery-workspace";
+import { LiveWorkflowRefresh } from "@/app/(client)/(panel)/_components/live-workflow-refresh";
+import { GalleryWorkspace } from "@/app/(client)/(panel)/gallery/_components/gallery-workspace";
 import {
   listOrganizationAssetFolders,
   listOrganizationAssets,

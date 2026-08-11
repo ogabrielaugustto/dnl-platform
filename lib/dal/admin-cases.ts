@@ -21,6 +21,12 @@ import {
   type DetectionEvidenceCoverage,
   type DetectionSiteSnapshot,
 } from "@/lib/dal/detections";
+import {
+  buildCaseSiteSignals,
+  isMissingSiteIntelDomainOwnerSchemaError,
+  type CaseSiteIntelForSignals,
+  type CaseSiteSignals,
+} from "@/lib/dal/admin-case-site-signals";
 import { buildAssetPublicUrl } from "@/lib/r2";
 import { createClient } from "@/lib/server";
 
@@ -79,6 +85,24 @@ type DetectionEvidenceRow = {
   source_url_snapshot: string | null;
   matched_image_url_snapshot: string | null;
   created_at: string;
+};
+
+type SiteIntelInvestigationRow = {
+  detection_id: string;
+  status: string;
+  primary_email: string | null;
+  primary_phone: string | null;
+  primary_cnpj: string | null;
+  contact_candidates: Array<Record<string, unknown>> | null;
+  domain_owner_name: string | null;
+  domain_owner_organization: string | null;
+  domain_owner_document: string | null;
+  domain_owner_email: string | null;
+  domain_owner_source_type: string | null;
+  domain_owner_source_url: string | null;
+  domain_owner_contact_status: string | null;
+  completed_at: string | null;
+  requested_at: string;
 };
 
 type DetectionActionRow = {
@@ -428,12 +452,7 @@ export type AdminCaseListItem = {
   pagesCount: number;
   placementsCount: number;
   capturedEvidenceCount: number;
-  siteSignals: {
-    cnpjCandidates: string[];
-    emails: string[];
-    phones: string[];
-    siteName: string | null;
-  };
+  siteSignals: CaseSiteSignals;
   latestAction: {
     action: string;
     actorName: string | null;
@@ -499,6 +518,93 @@ function getSiteSnapshot(
       ? snapshot.phones.filter((item): item is string => typeof item === "string")
       : [],
     rdap,
+  };
+}
+
+function mapSiteIntelForSignals(row: SiteIntelInvestigationRow): CaseSiteIntelForSignals {
+  const hasDomainOwner =
+    row.domain_owner_name ||
+    row.domain_owner_organization ||
+    row.domain_owner_document ||
+    row.domain_owner_email ||
+    row.domain_owner_source_type ||
+    row.domain_owner_source_url ||
+    row.domain_owner_contact_status;
+
+  return {
+    primaryEmail: row.primary_email,
+    primaryPhone: row.primary_phone,
+    primaryCnpj: row.primary_cnpj,
+    contactCandidates: Array.isArray(row.contact_candidates) ? row.contact_candidates : [],
+    domainOwner: hasDomainOwner
+      ? {
+          name: row.domain_owner_name,
+          organization: row.domain_owner_organization,
+          document: row.domain_owner_document,
+          email: row.domain_owner_email,
+          sourceType: row.domain_owner_source_type,
+          sourceUrl: row.domain_owner_source_url,
+          contactStatus: row.domain_owner_contact_status,
+        }
+      : null,
+  };
+}
+
+async function loadSiteIntelInvestigations(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  detectionIds: string[],
+) {
+  const currentResult = await supabase
+    .from("detection_site_intel_investigations")
+    .select(
+      "detection_id, status, primary_email, primary_phone, primary_cnpj, contact_candidates, domain_owner_name, domain_owner_organization, domain_owner_document, domain_owner_email, domain_owner_source_type, domain_owner_source_url, domain_owner_contact_status, completed_at, requested_at",
+    )
+    .in("detection_id", detectionIds)
+    .order("completed_at", { ascending: false, nullsFirst: false })
+    .order("requested_at", { ascending: false })
+    .returns<SiteIntelInvestigationRow[]>();
+
+  if (!isMissingSiteIntelDomainOwnerSchemaError(currentResult.error)) {
+    return currentResult;
+  }
+
+  const legacyResult = await supabase
+    .from("detection_site_intel_investigations")
+    .select(
+      "detection_id, status, primary_email, primary_phone, primary_cnpj, contact_candidates, completed_at, requested_at",
+    )
+    .in("detection_id", detectionIds)
+    .order("completed_at", { ascending: false, nullsFirst: false })
+    .order("requested_at", { ascending: false })
+    .returns<
+      Array<
+        Pick<
+          SiteIntelInvestigationRow,
+          | "detection_id"
+          | "status"
+          | "primary_email"
+          | "primary_phone"
+          | "primary_cnpj"
+          | "contact_candidates"
+          | "completed_at"
+          | "requested_at"
+        >
+      >
+    >();
+
+  return {
+    data:
+      legacyResult.data?.map((row) => ({
+        ...row,
+        domain_owner_name: null,
+        domain_owner_organization: null,
+        domain_owner_document: null,
+        domain_owner_email: null,
+        domain_owner_source_type: null,
+        domain_owner_source_url: null,
+        domain_owner_contact_status: null,
+      })) ?? null,
+    error: legacyResult.error,
   };
 }
 
@@ -1094,6 +1200,7 @@ async function buildAdminCases(filters?: {
     { data: caseEvents, error: caseEventsError },
     { data: settlements, error: settlementsError },
     { data: platformDocuments, error: platformDocumentsError },
+    { data: siteIntelInvestigations, error: siteIntelInvestigationsError },
   ] = await Promise.all([
     supabase
       .from("organizations")
@@ -1176,6 +1283,7 @@ async function buildAdminCases(filters?: {
       .in("document_kind", ["dnl_cnpj", "dnl_social_contract", "other"])
       .order("created_at", { ascending: false })
       .returns<PlatformLegalDocumentRow[]>(),
+    loadSiteIntelInvestigations(supabase, detectionIds),
   ]);
 
   if (
@@ -1189,7 +1297,8 @@ async function buildAdminCases(filters?: {
     caseDocumentsError ||
     caseEventsError ||
     settlementsError ||
-    platformDocumentsError
+    platformDocumentsError ||
+    siteIntelInvestigationsError
   ) {
     throw new Error("Nao foi possivel consolidar os dados dos casos.");
   }
@@ -1220,6 +1329,13 @@ async function buildAdminCases(filters?: {
   for (const evidence of evidences ?? []) {
     if (!latestEvidenceByDetectionId.has(evidence.detection_id)) {
       latestEvidenceByDetectionId.set(evidence.detection_id, evidence);
+    }
+  }
+
+  const latestSiteIntelByDetectionId = new Map<string, SiteIntelInvestigationRow>();
+  for (const investigation of siteIntelInvestigations ?? []) {
+    if (!latestSiteIntelByDetectionId.has(investigation.detection_id)) {
+      latestSiteIntelByDetectionId.set(investigation.detection_id, investigation);
     }
   }
 
@@ -1311,6 +1427,7 @@ async function buildAdminCases(filters?: {
       placements: AdminCasePlacement[];
       actions: DetectionActionRow[];
       declarations: AdminSignedDeclarationItem[];
+      siteIntelInvestigations: CaseSiteIntelForSignals[];
     }
   >();
 
@@ -1332,9 +1449,14 @@ async function buildAdminCases(filters?: {
       placements: [],
       actions: [],
       declarations: [],
+      siteIntelInvestigations: [],
     };
 
     current.placements.push(mapped.placement);
+    const siteIntel = latestSiteIntelByDetectionId.get(row.id);
+    if (siteIntel) {
+      current.siteIntelInvestigations.push(mapSiteIntelForSignals(siteIntel));
+    }
     current.actions.push(...(actionsByDetectionId.get(row.id) ?? []));
     current.declarations.push(...(declarationsByDetectionId.get(row.id) ?? []));
     groupedCases.set(caseKey, current);
@@ -1376,8 +1498,8 @@ async function buildAdminCases(filters?: {
             evidenceCoverage,
             representativeDetectionId: pageRepresentative.id,
             placements: sortedPlacements.map((placement) => ({
-              id: placement.id,
-              publicId: placement.publicId,
+      id: placement.id,
+      publicId: placement.publicId,
               sourceUrl: placement.sourceUrl,
               pageTitle: placement.pageTitle,
               status: placement.status,
@@ -1468,12 +1590,10 @@ async function buildAdminCases(filters?: {
         capturedEvidenceCount: placements.filter(
           (placement) => placement.latestEvidence?.captureStatus === "captured",
         ).length,
-        siteSignals: {
-          cnpjCandidates: uniqueStrings(siteSnapshots.flatMap((snapshot) => snapshot.cnpjCandidates)),
-          emails: uniqueStrings(siteSnapshots.flatMap((snapshot) => snapshot.emails)),
-          phones: uniqueStrings(siteSnapshots.flatMap((snapshot) => snapshot.phones)),
-          siteName: uniqueStrings(siteSnapshots.map((snapshot) => snapshot.siteName))[0] ?? null,
-        },
+        siteSignals: buildCaseSiteSignals({
+          siteSnapshots,
+          investigations: group.siteIntelInvestigations,
+        }),
         latestAction: latestAction
           ? {
               action: latestAction.action,

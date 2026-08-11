@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LiveWorkflowRefresh } from "@/app/(client)/_components/live-workflow-refresh";
+import { LiveWorkflowRefresh } from "@/app/(client)/(panel)/_components/live-workflow-refresh";
 import { RefreshDataButton } from "@/components/app/refresh-data-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

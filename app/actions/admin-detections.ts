@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requirePanelAccess } from "@/lib/auth";
 import { createClient } from "@/lib/server";
+import { wakeWorkerForSiteIntelInvestigation } from "@/lib/worker";
 
 const updateAdminDetectionStatusSchema = z.object({
   detectionId: z.uuid(),
@@ -173,6 +174,12 @@ export async function updateAdminDetectionStatusAction(formData: FormData) {
 
   if (actionError) {
     throw new Error("Nao foi possivel registrar o historico da ocorrencia.");
+  }
+
+  if (parsed.data.nextStatus === "unauthorized") {
+    await Promise.allSettled(
+      detectionsToUpdate.map((item) => wakeWorkerForSiteIntelInvestigation(item.id)),
+    );
   }
 
   revalidatePath("/admin/detections");

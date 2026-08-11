@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyClicksignWebhookSignature } from "@/lib/clicksign/representation-documents";
+import { applyClicksignCaseSraWebhook } from "@/lib/dal/admin-case-sra";
 import { applyClicksignRepresentationWebhook } from "@/lib/dal/client-representation-documents";
 
 export const runtime = "nodejs";
@@ -29,8 +30,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await applyClicksignRepresentationWebhook(payload);
-    return NextResponse.json({ ok: true, ...result });
+    const [representation, caseSra] = await Promise.all([
+      applyClicksignRepresentationWebhook(payload),
+      applyClicksignCaseSraWebhook(payload),
+    ]);
+    return NextResponse.json({ ok: true, representation, caseSra });
   } catch (error) {
     console.error("clicksign_webhook_processing_failed", {
       message: error instanceof Error ? error.message : "unknown_error",

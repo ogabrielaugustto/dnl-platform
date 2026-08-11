@@ -16,11 +16,11 @@ import {
   createAssetBatchAction,
   type AssetBatchActionState,
 } from "@/app/actions/assets";
-import { ClientRepresentationRequiredDialog } from "@/app/(client)/gallery/_components/client-representation-required-dialog";
-import { AssetFolderFilter } from "@/app/(client)/gallery/_components/asset-folder-filter";
-import { AssetFolderForm } from "@/app/(client)/gallery/_components/asset-folder-form";
-import { AssetGalleryTile } from "@/app/(client)/gallery/_components/asset-gallery-tile";
-import { RenameFolderForm } from "@/app/(client)/gallery/_components/rename-folder-form";
+import { ClientRepresentationRequiredDialog } from "@/app/(client)/(panel)/gallery/_components/client-representation-required-dialog";
+import { AssetFolderFilter } from "@/app/(client)/(panel)/gallery/_components/asset-folder-filter";
+import { AssetFolderForm } from "@/app/(client)/(panel)/gallery/_components/asset-folder-form";
+import { AssetGalleryTile } from "@/app/(client)/(panel)/gallery/_components/asset-gallery-tile";
+import { RenameFolderForm } from "@/app/(client)/(panel)/gallery/_components/rename-folder-form";
 import { RefreshDataButton } from "@/components/app/refresh-data-button";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";

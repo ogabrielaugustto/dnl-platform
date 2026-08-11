@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { CustomerOnboardingWizard } from "@/app/(auth)/onboarding/_components/customer-onboarding-wizard";
+import { CustomerOnboardingWizard } from "@/app/(client)/onboarding/_components/customer-onboarding-wizard";
 import { getAuthContext } from "@/lib/auth";
 import { buildWorkspaceSuggestion } from "@/lib/customer-onboarding";
 import { buildPendingSignupOnboardingFromMetadata, getPendingSignupOnboarding } from "@/lib/signup-onboarding";

@@ -1,7 +1,11 @@
 import "server-only";
 
 import { z } from "zod";
-import type { SoaTemplateData } from "@/lib/clicksign/representation-documents";
+import type {
+  SoaTemplateData,
+  SraSigner,
+  SraTemplateData,
+} from "@/lib/clicksign/representation-documents";
 
 export type ClicksignEnvironment = "sandbox" | "production";
 
@@ -32,6 +36,60 @@ export type ClicksignSoaEnvelopeResult = {
     activation: unknown;
     notification: unknown;
   };
+};
+
+export type ClicksignSraEnvelopeInput = {
+  templateKey: string;
+  fileName: string;
+  caseId: string;
+  templateData: SraTemplateData;
+  signers: SraSigner[];
+  metadata: Record<string, unknown>;
+};
+
+export type ClicksignSraSignerResult = {
+  kind: SraSigner["kind"];
+  signerId: string;
+  qualificationRequirementId: string;
+  authenticationRequirementId: string;
+  notificationId: string | null;
+};
+
+export type ClicksignSraEnvelopeResult = {
+  environment: ClicksignEnvironment;
+  envelopeId: string;
+  documentId: string;
+  signers: ClicksignSraSignerResult[];
+  raw: {
+    envelope: unknown;
+    document: unknown;
+    signers: unknown[];
+    qualificationRequirements: unknown[];
+    authenticationRequirements: unknown[];
+    activation: unknown;
+    notifications: unknown[];
+  };
+};
+
+type ClicksignSignerInput = {
+  name: string;
+  email: string;
+  cpf: string;
+};
+
+type ClicksignEnvelopeInput = {
+  templateKey: string;
+  fileName: string;
+  envelopeName: string;
+  subject: string;
+  message: string;
+  notification: {
+    principal: string;
+    button: string;
+    final: string;
+  };
+  templateData: Record<string, string>;
+  metadata: Record<string, unknown>;
 };
 
 type JsonApiResponse = {
@@ -152,7 +210,7 @@ function buildRelationship(type: "documents" | "signers", id: string) {
   };
 }
 
-async function createEnvelope(input: ClicksignSoaEnvelopeInput) {
+async function createEnvelope(input: ClicksignEnvelopeInput) {
   const settings = getClicksignSettings();
   const payload = await clicksignFetch("/envelopes", {
     accessToken: settings.accessToken,
@@ -162,15 +220,14 @@ async function createEnvelope(input: ClicksignSoaEnvelopeInput) {
       data: {
         type: "envelopes",
         attributes: {
-          name: `SOA - ${input.signerName}`,
+          name: input.envelopeName,
           locale: "pt-BR",
           auto_close: true,
           remind_interval: "3",
           block_after_refusal: false,
           deadline_at: buildEnvelopeDeadline(),
-          default_subject: "Assinatura do SOA - Direito na Lente",
-          default_message:
-            "Antes de iniciar o monitoramento das imagens, precisamos da assinatura do termo de representacao da Direito na Lente.",
+          default_subject: input.subject,
+          default_message: input.message,
         },
       },
     }),
@@ -187,7 +244,7 @@ async function createEnvelope(input: ClicksignSoaEnvelopeInput) {
 async function createDocument(params: {
   envelopeId: string;
   settings: ReturnType<typeof getClicksignSettings>;
-  input: ClicksignSoaEnvelopeInput;
+  input: ClicksignEnvelopeInput;
 }) {
   const payload = await clicksignFetch(`/envelopes/${params.envelopeId}/documents`, {
     accessToken: params.settings.accessToken,
@@ -217,7 +274,7 @@ async function createDocument(params: {
 async function createSigner(params: {
   envelopeId: string;
   settings: ReturnType<typeof getClicksignSettings>;
-  input: ClicksignSoaEnvelopeInput;
+  signer: ClicksignSignerInput;
 }) {
   const payload = await clicksignFetch(`/envelopes/${params.envelopeId}/signers`, {
     accessToken: params.settings.accessToken,
@@ -227,10 +284,10 @@ async function createSigner(params: {
       data: {
         type: "signers",
         attributes: {
-          name: params.input.signerName,
-          email: params.input.signerEmail,
+          name: params.signer.name,
+          email: params.signer.email,
           has_documentation: true,
-          documentation: params.input.signerCpf,
+          documentation: params.signer.cpf,
           refusable: false,
           group: 1,
           communicate_events: {
@@ -254,6 +311,7 @@ async function createQualificationRequirement(params: {
   documentId: string;
   signerId: string;
   settings: ReturnType<typeof getClicksignSettings>;
+  role: "sign" | "party" | "legal_representative" | "witness";
 }) {
   const payload = await clicksignFetch(`/envelopes/${params.envelopeId}/requirements`, {
     accessToken: params.settings.accessToken,
@@ -264,7 +322,7 @@ async function createQualificationRequirement(params: {
         type: "requirements",
         attributes: {
           action: "agree",
-          role: "sign",
+          role: params.role,
         },
         relationships: {
           document: buildRelationship("documents", params.documentId),
@@ -335,6 +393,8 @@ async function notifySigner(params: {
   envelopeId: string;
   signerId: string;
   settings: ReturnType<typeof getClicksignSettings>;
+  subject: string;
+  notification: ClicksignEnvelopeInput["notification"];
 }) {
   const payload = await clicksignFetch(
     `/envelopes/${params.envelopeId}/signers/${params.signerId}/notifications`,
@@ -347,13 +407,12 @@ async function notifySigner(params: {
           type: "notifications",
           attributes: {
             email_customization: {
-              subject: "Assinatura do SOA - Direito na Lente",
+              subject: params.subject,
               head: "Direito na Lente",
               greeting: "Olá,",
-              principal:
-                "Para iniciar o monitoramento das suas imagens, assine o termo de representacao enviado pela Direito na Lente.",
-              button: "Assinar SOA",
-              final: "Depois da assinatura, volte para a plataforma e confirme o envio das imagens.",
+              principal: params.notification.principal,
+              button: params.notification.button,
+              final: params.notification.final,
               align: "left",
               show_details: true,
             },
@@ -372,22 +431,43 @@ async function notifySigner(params: {
 export async function createClicksignSoaEnvelope(
   input: ClicksignSoaEnvelopeInput,
 ): Promise<ClicksignSoaEnvelopeResult> {
-  const envelope = await createEnvelope(input);
+  const envelopeInput: ClicksignEnvelopeInput = {
+    templateKey: input.templateKey,
+    fileName: input.fileName,
+    envelopeName: `SOA - ${input.signerName}`,
+    subject: "Assinatura do SOA - Direito na Lente",
+    message:
+      "Antes de iniciar o monitoramento das imagens, precisamos da assinatura do termo de representacao da Direito na Lente.",
+    notification: {
+      principal:
+        "Para iniciar o monitoramento das suas imagens, assine o termo de representacao enviado pela Direito na Lente.",
+      button: "Assinar SOA",
+      final: "Depois da assinatura, volte para a plataforma e confirme o envio das imagens.",
+    },
+    templateData: input.templateData,
+    metadata: input.metadata,
+  };
+  const envelope = await createEnvelope(envelopeInput);
   const document = await createDocument({
     envelopeId: envelope.id,
     settings: envelope.settings,
-    input,
+    input: envelopeInput,
   });
   const signer = await createSigner({
     envelopeId: envelope.id,
     settings: envelope.settings,
-    input,
+    signer: {
+      name: input.signerName,
+      email: input.signerEmail,
+      cpf: input.signerCpf,
+    },
   });
   const qualificationRequirement = await createQualificationRequirement({
     envelopeId: envelope.id,
     documentId: document.id,
     signerId: signer.id,
     settings: envelope.settings,
+    role: "sign",
   });
   const authenticationRequirement = await createAuthenticationRequirement({
     envelopeId: envelope.id,
@@ -403,6 +483,8 @@ export async function createClicksignSoaEnvelope(
     envelopeId: envelope.id,
     signerId: signer.id,
     settings: envelope.settings,
+    subject: envelopeInput.subject,
+    notification: envelopeInput.notification,
   });
 
   return {
@@ -421,6 +503,108 @@ export async function createClicksignSoaEnvelope(
       authenticationRequirement: authenticationRequirement.payload,
       activation,
       notification: notification.payload,
+    },
+  };
+}
+
+export async function createClicksignSraEnvelope(
+  input: ClicksignSraEnvelopeInput,
+): Promise<ClicksignSraEnvelopeResult> {
+  const envelopeInput: ClicksignEnvelopeInput = {
+    templateKey: input.templateKey,
+    fileName: input.fileName,
+    envelopeName: `SRA - Caso ${input.caseId}`,
+    subject: `Assinatura do acordo SRA - Caso ${input.caseId}`,
+    message:
+      "A Direito na Lente enviou o termo de acordo SRA para assinatura das partes.",
+    notification: {
+      principal:
+        "Revise e assine o termo de acordo SRA enviado pela Direito na Lente.",
+      button: "Assinar SRA",
+      final: "A conclusao sera registrada automaticamente no caso apos todas as assinaturas.",
+    },
+    templateData: input.templateData,
+    metadata: input.metadata,
+  };
+  const envelope = await createEnvelope(envelopeInput);
+  const document = await createDocument({
+    envelopeId: envelope.id,
+    settings: envelope.settings,
+    input: envelopeInput,
+  });
+  const signerResults: ClicksignSraSignerResult[] = [];
+  const signerPayloads: unknown[] = [];
+  const qualificationPayloads: unknown[] = [];
+  const authenticationPayloads: unknown[] = [];
+
+  for (const signerInput of input.signers) {
+    const signer = await createSigner({
+      envelopeId: envelope.id,
+      settings: envelope.settings,
+      signer: signerInput,
+    });
+    const qualificationRequirement = await createQualificationRequirement({
+      envelopeId: envelope.id,
+      documentId: document.id,
+      signerId: signer.id,
+      settings: envelope.settings,
+      role:
+        signerInput.kind === "notified"
+          ? "party"
+          : signerInput.kind === "dnl"
+            ? "legal_representative"
+            : "witness",
+    });
+    const authenticationRequirement = await createAuthenticationRequirement({
+      envelopeId: envelope.id,
+      documentId: document.id,
+      signerId: signer.id,
+      settings: envelope.settings,
+    });
+
+    signerResults.push({
+      kind: signerInput.kind,
+      signerId: signer.id,
+      qualificationRequirementId: qualificationRequirement.id,
+      authenticationRequirementId: authenticationRequirement.id,
+      notificationId: null,
+    });
+    signerPayloads.push(signer.payload);
+    qualificationPayloads.push(qualificationRequirement.payload);
+    authenticationPayloads.push(authenticationRequirement.payload);
+  }
+
+  const activation = await activateEnvelope({
+    envelopeId: envelope.id,
+    settings: envelope.settings,
+  });
+  const notificationPayloads: unknown[] = [];
+
+  for (const signerResult of signerResults) {
+    const notification = await notifySigner({
+      envelopeId: envelope.id,
+      signerId: signerResult.signerId,
+      settings: envelope.settings,
+      subject: envelopeInput.subject,
+      notification: envelopeInput.notification,
+    });
+    signerResult.notificationId = notification.id;
+    notificationPayloads.push(notification.payload);
+  }
+
+  return {
+    environment: envelope.environment,
+    envelopeId: envelope.id,
+    documentId: document.id,
+    signers: signerResults,
+    raw: {
+      envelope: envelope.payload,
+      document: document.payload,
+      signers: signerPayloads,
+      qualificationRequirements: qualificationPayloads,
+      authenticationRequirements: authenticationPayloads,
+      activation,
+      notifications: notificationPayloads,
     },
   };
 }
