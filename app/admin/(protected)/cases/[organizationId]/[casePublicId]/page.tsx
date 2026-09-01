@@ -9,10 +9,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  ADMIN_CASE_COMMUNICATION_ACTIONS,
+  buildAdminCaseCommunicationDraft,
+  type AdminCaseCommunicationActionKind,
+  type AdminCaseCommunicationDraft,
+  type CommunicationAttachmentPreview,
+} from "@/lib/admin-case-communications";
+import {
   DOCUMENT_KIND_LABELS,
   DOCUMENT_STATUS_LABELS,
   SETTLEMENT_STATUS_LABELS,
   WORKFLOW_STAGE_LABELS,
+  buildCaseCommunicationSnapshot,
 } from "@/lib/admin-case-workflow";
 import {
   formatDetectionStatus,
@@ -23,6 +31,7 @@ import {
 } from "@/lib/detection-ui";
 import { getAdminCaseDetails, type AdminCaseDetails } from "@/lib/dal/admin-cases";
 import { getAdminCaseSraDefaults } from "@/lib/dal/admin-case-sra";
+import { getCurrentClientRepresentationDocument } from "@/lib/dal/client-representation-documents";
 import { formatPublicId } from "@/lib/public-id";
 import { AdminCaseActionMenu } from "./_components/admin-case-action-menu";
 
@@ -403,7 +412,10 @@ export default async function AdminCaseDetailsPage({
     notFound();
   }
 
-  const sraDefaults = await getAdminCaseSraDefaults(adminCase);
+  const [sraDefaults, currentSoa] = await Promise.all([
+    getAdminCaseSraDefaults(adminCase),
+    getCurrentClientRepresentationDocument(adminCase.organization.id, "soa"),
+  ]);
   const representativePlacement = adminCase.placements[0] ?? null;
   const evidencePreviewUrl =
     adminCase.matchedImageUrl ??
@@ -413,11 +425,72 @@ export default async function AdminCaseDetailsPage({
     representativePlacement?.matchedImageUrl ??
     null;
   const casePublicIdLabel = formatPublicId(adminCase.publicId);
+  const notifiedName =
+    adminCase.workflow.notified.name ??
+    adminCase.siteSignals.domainOwner?.organization ??
+    adminCase.siteSignals.domainOwner?.name ??
+    null;
+  const notifiedEmail =
+    adminCase.workflow.notified.email ??
+    adminCase.siteSignals.domainOwner?.email ??
+    adminCase.siteSignals.emails[0] ??
+    null;
+  const communicationDraftContext = {
+    casePublicId: adminCase.publicId,
+    casePublicIdLabel,
+    clientName: adminCase.organization.name,
+    domain: adminCase.domain,
+    sourceUrl: adminCase.sourceUrl,
+    finalUrl: adminCase.finalUrl,
+    assetTitle: adminCase.asset.title,
+    notifiedName,
+    notifiedEmail,
+  };
+  const communicationDrafts = Object.fromEntries(
+    ADMIN_CASE_COMMUNICATION_ACTIONS.map((action) => [
+      action,
+      buildAdminCaseCommunicationDraft(
+        action,
+        communicationDraftContext,
+        buildCaseCommunicationSnapshot,
+      ),
+    ]),
+  ) as Record<AdminCaseCommunicationActionKind, AdminCaseCommunicationDraft>;
+  const communicationAttachments = (["rhf", "soa", "proofdata", "metadata"] as const).map(
+    (kind) => {
+      const document = adminCase.workflow.documents.find((item) => item.kind === kind);
+      const hasStoredFile =
+        Boolean(document?.downloadUrl) &&
+        (document?.status === "attached" ||
+          document?.status === "signed" ||
+          document?.status === "sent");
+      const hasSnapshot =
+        (kind === "rhf" && Boolean(adminCase.latestSignedDeclaration)) ||
+        (kind === "soa" && currentSoa?.status === "signed");
+
+      return {
+        id:
+          document?.id ??
+          (kind === "soa" && currentSoa ? `soa:${currentSoa.id}` : `missing:${kind}`),
+        kind,
+        title: document?.title ?? DOCUMENT_KIND_LABELS[kind],
+        fileName: document?.fileName ?? null,
+        source:
+          kind === "soa" && !hasStoredFile && currentSoa?.status === "signed"
+            ? "client_representation_document"
+            : (document?.source ?? "missing"),
+        status: document?.status ?? currentSoa?.status ?? "missing",
+        available: hasStoredFile || hasSnapshot,
+      } satisfies CommunicationAttachmentPreview;
+    },
+  );
   const actionContext = {
     organizationId: adminCase.organization.id,
     casePublicId: adminCase.publicId,
     casePublicIdLabel,
     sraDefaults,
+    communicationDrafts,
+    communicationAttachments,
   };
 
   return (

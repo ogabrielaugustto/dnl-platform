@@ -150,11 +150,20 @@ test("maps admin case actions to workflow effects", () => {
   });
 });
 
-test("enables only the integrated SRA action in the admin action menu", () => {
+test("enables communication actions and the integrated SRA action", () => {
+  const enabledActions = new Set([
+    "first_communication",
+    "documentation_notice",
+    "c1",
+    "c1p",
+    "c2",
+    "register_sra",
+  ]);
+
   for (const action of Object.keys(workflow.ADMIN_CASE_ACTION_LABELS)) {
     assert.equal(
       workflow.isAdminCaseActionEnabled(action),
-      action === "register_sra",
+      enabledActions.has(action),
     );
   }
 });

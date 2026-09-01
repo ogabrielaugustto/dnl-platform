@@ -39,12 +39,18 @@ async function sendEmail({
   html,
   text,
   replyTo,
+  attachments,
 }: {
   to: string | string[];
   subject: string;
   html: string;
   text: string;
   replyTo?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+    contentType: string;
+  }>;
 }) {
   const { client, env } = getResendClient();
   const { error } = await client.emails.send({
@@ -54,6 +60,11 @@ async function sendEmail({
     html,
     text,
     replyTo: replyTo ?? env.RESEND_REPLY_TO_EMAIL,
+    attachments: attachments?.map((attachment) => ({
+      filename: attachment.filename,
+      content: attachment.content,
+      content_type: attachment.contentType,
+    })),
   });
 
   if (error) {
@@ -166,6 +177,7 @@ export async function sendCaseCommunicationEmail({
   validationUrl,
   validationCode,
   replyTo,
+  attachments,
 }: {
   to: string;
   subject: string;
@@ -177,6 +189,11 @@ export async function sendCaseCommunicationEmail({
   validationUrl?: string | null;
   validationCode?: string | null;
   replyTo?: string | null;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+    contentType: string;
+  }>;
 }) {
   const content = buildCaseCommunicationEmail({
     subject,
@@ -195,5 +212,6 @@ export async function sendCaseCommunicationEmail({
     html: content.html,
     text: content.text,
     replyTo: replyTo ?? undefined,
+    attachments,
   });
 }

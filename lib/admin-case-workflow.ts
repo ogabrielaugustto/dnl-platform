@@ -544,7 +544,14 @@ export function resolveAdminCaseActionEffect(
 }
 
 export function isAdminCaseActionEnabled(kind: string): kind is AdminCaseActionKind {
-  return kind === "register_sra";
+  return (
+    kind === "first_communication" ||
+    kind === "documentation_notice" ||
+    kind === "c1" ||
+    kind === "c1p" ||
+    kind === "c2" ||
+    kind === "register_sra"
+  );
 }
 
 export function buildCaseCommunicationSnapshot(

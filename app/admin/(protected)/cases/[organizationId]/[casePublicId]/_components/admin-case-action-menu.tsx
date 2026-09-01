@@ -36,13 +36,25 @@ import {
   isAdminCaseActionEnabled,
   type AdminCaseActionKind,
 } from "@/lib/admin-case-workflow";
+import {
+  isAdminCaseCommunicationAction,
+  type AdminCaseCommunicationActionKind,
+  type AdminCaseCommunicationDraft,
+  type CommunicationAttachmentPreview,
+} from "@/lib/admin-case-communications";
 import type { AdminCaseSraDefaults } from "@/lib/dal/admin-case-sra";
+import { AdminCaseCommunicationDialog } from "./admin-case-communication-dialog";
 
 type AdminCaseActionContext = {
   organizationId: string;
   casePublicId: number;
   casePublicIdLabel: string;
   sraDefaults: AdminCaseSraDefaults;
+  communicationDrafts: Record<
+    AdminCaseCommunicationActionKind,
+    AdminCaseCommunicationDraft
+  >;
+  communicationAttachments: CommunicationAttachmentPreview[];
 };
 
 type AdminCaseActionMenuProps = {
@@ -137,7 +149,9 @@ function FormSection({
 }
 
 export function AdminCaseActionMenu({ context }: AdminCaseActionMenuProps) {
-  const [open, setOpen] = useState(false);
+  const [sraOpen, setSraOpen] = useState(false);
+  const [communicationAction, setCommunicationAction] =
+    useState<AdminCaseCommunicationActionKind | null>(null);
   const [state, formAction, pending] = useActionState(
     requestAdminCaseSraAction,
     initialAdminCaseSraActionState,
@@ -160,7 +174,15 @@ export function AdminCaseActionMenu({ context }: AdminCaseActionMenuProps) {
             Comunicação
           </DropdownMenuLabel>
           {communicationActions.map((action) => (
-            <ActionMenuItem action={action} key={action} onSelect={() => setOpen(true)} />
+            <ActionMenuItem
+              action={action}
+              key={action}
+              onSelect={() => {
+                if (isAdminCaseCommunicationAction(action)) {
+                  setCommunicationAction(action);
+                }
+              }}
+            />
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="flex items-center gap-2">
@@ -168,7 +190,7 @@ export function AdminCaseActionMenu({ context }: AdminCaseActionMenuProps) {
             Tratativas
           </DropdownMenuLabel>
           {internalActions.map((action) => (
-            <ActionMenuItem action={action} key={action} onSelect={() => setOpen(true)} />
+            <ActionMenuItem action={action} key={action} onSelect={() => undefined} />
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="flex items-center gap-2">
@@ -176,7 +198,15 @@ export function AdminCaseActionMenu({ context }: AdminCaseActionMenuProps) {
             Negociação e documentos
           </DropdownMenuLabel>
           {financialActions.map((action) => (
-            <ActionMenuItem action={action} key={action} onSelect={() => setOpen(true)} />
+            <ActionMenuItem
+              action={action}
+              key={action}
+              onSelect={() => {
+                if (action === "register_sra") {
+                  setSraOpen(true);
+                }
+              }}
+            />
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="flex items-center gap-2">
@@ -184,12 +214,29 @@ export function AdminCaseActionMenu({ context }: AdminCaseActionMenuProps) {
             Encaminhamento
           </DropdownMenuLabel>
           {closingActions.map((action) => (
-            <ActionMenuItem action={action} key={action} onSelect={() => setOpen(true)} />
+            <ActionMenuItem action={action} key={action} onSelect={() => undefined} />
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      {communicationAction ? (
+        <AdminCaseCommunicationDialog
+          attachments={context.communicationAttachments}
+          casePublicId={context.casePublicId}
+          casePublicIdLabel={context.casePublicIdLabel}
+          draft={context.communicationDrafts[communicationAction]}
+          key={communicationAction}
+          open
+          organizationId={context.organizationId}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) {
+              setCommunicationAction(null);
+            }
+          }}
+        />
+      ) : null}
+
+      <Dialog open={sraOpen} onOpenChange={setSraOpen}>
         <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-3xl">
           <form action={formAction} className="grid gap-5">
             <DialogHeader>
@@ -428,7 +475,7 @@ export function AdminCaseActionMenu({ context }: AdminCaseActionMenuProps) {
                 disabled={pending}
                 type="button"
                 variant="outline"
-                onClick={() => setOpen(false)}
+                onClick={() => setSraOpen(false)}
               >
                 {state.status === "success" ? "Fechar" : "Cancelar"}
               </Button>
